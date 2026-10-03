@@ -1,18 +1,177 @@
+# ============================================================
+# Network Guardian IDS - .gitignore
+# ============================================================
+# Policy:
+#   - models/         : ignored (regenerable via Notebook 02)
+#   - outputs/        : committed (graded deliverables)
+#   - data/raw/       : committed (dataset + manifests)
+#   - data/processed/ : ignored except frozen contract files
+#
+# At final submission, freeze trained models with:
+#   git add -f models/*.joblib models/*.pt
+# ============================================================
+
+
+# ------------------------------------------------------------
+# Python virtual environments
+# ------------------------------------------------------------
 .venv/
 venv/
 ENV/
+env/
+
+
+# ------------------------------------------------------------
+# Python bytecode and native caches
+# ------------------------------------------------------------
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
 
+
+# ------------------------------------------------------------
+# Python packaging and build output
+# ------------------------------------------------------------
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
+pip-wheel-metadata/
+
+
+# ------------------------------------------------------------
+# Python tooling caches
+# ------------------------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+
+
+# ------------------------------------------------------------
+# Jupyter
+# ------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+
+# ------------------------------------------------------------
+# Node.js
+# ------------------------------------------------------------
 node_modules/
 client/node_modules/
 server/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
+
+# ------------------------------------------------------------
+# Next.js
+# ------------------------------------------------------------
 client/.next/
 client/out/
 client/build/
+client/.vercel/
 
+
+# ------------------------------------------------------------
+# Environment variables and secrets
+# ------------------------------------------------------------
 .env
 .env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+
+# ------------------------------------------------------------
+# Data artifacts
+# ------------------------------------------------------------
+# Processed matrices and fitted encoders are regenerable by
+# running Notebook 01. Ignore them, but keep the frozen
+# contract files that the Python bridge depends on.
+data/processed/
+!data/processed/feature_names.json
+!data/processed/split_indices.json
+
+
+# ------------------------------------------------------------
+# Model binaries
+# ------------------------------------------------------------
+# Trained models are large, opaque, and regenerable via
+# Notebook 02 with fixed seeds. Handed off via shared drive
+# for the demo. Force-add at final submission (see header).
+models/*.pkl
+models/*.joblib
+models/*.pt
+models/*.pth
+models/*.onnx
+models/*.h5
+
+
+# ------------------------------------------------------------
+# Outputs - EXPLICITLY TRACKED
+# ------------------------------------------------------------
+# outputs/ holds the graded deliverables: confusion matrices,
+# ROC/PR curves, SHAP plots, attention visualizations, metric
+# tables, and evaluation logs. Committed by design so the
+# paper, video, and grader reference the same immutable set
+# of figures.
+#
+# Positive re-includes below prevent accidental shadowing by
+# broad ignore patterns added later.
+!outputs/
+!outputs/**/*.png
+!outputs/**/*.pdf
+!outputs/**/*.svg
+!outputs/**/*.csv
+!outputs/**/*.json
+!outputs/**/*.log
+!outputs/**/*.txt
+
+
+# ------------------------------------------------------------
+# Logs outside outputs/
+# ------------------------------------------------------------
+# Ad-hoc logs written outside outputs/ are scratch.
+# Evaluation logs belong in outputs/ and are covered above.
+*.log
+logs/
+
+
+# ------------------------------------------------------------
+# OS metadata
+# ------------------------------------------------------------
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+
+# ------------------------------------------------------------
+# Editor and IDE
+# ------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
