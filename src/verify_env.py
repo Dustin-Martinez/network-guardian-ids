@@ -54,10 +54,7 @@ CHECKS: list[Check] = [
     # Serialization
     Check("joblib",         "joblib",            True, "Model and encoder persistence"),
 
-    # Backend / Python bridge support
-    Check("fastapi",        "fastapi",           True, "Potential bridge API surface"),
-    Check("uvicorn",        "uvicorn",           True, "ASGI server for FastAPI"),
-    Check("pydantic",       "pydantic",          True, "Payload validation for bridge"),
+    Check("shap",           "shap",              True, "TreeExplainer for RF and XGBoost"),
 
     # Notebook tooling
     Check("jupyter",        "jupyter",           True, "Notebook execution environment"),
