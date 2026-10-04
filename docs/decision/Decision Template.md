@@ -37,9 +37,21 @@ Explain why this decision was chosen over alternatives.
 **Negative:**
 - List trade-offs or risks.
 
+## Affected Artifacts
+
+List the files, contracts, or configuration values that must change as a
+consequence of this decision. If nothing needs to change, write "None".
+
+- `path/to/file` — what changes
+- `path/to/contract` — section that must be revised
+
 ## Status
 
 [Proposed / Accepted / Deprecated / Superseded]
+
+## Decided By
+
+[Name] ([Role])
 
 ## Date
 

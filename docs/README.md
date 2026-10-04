@@ -102,7 +102,27 @@ A report never overrides a contract. If a report's metric disagrees with
 what a contract specifies as the target, the contract's target stands and
 the report explains the deviation.
 
-### 3.4 `docs/specs/`
+### 3.4 `docs/decision/`
+
+Contains decision request templates and records. A decision file is used
+when a teammate encounters a situation the contracts and task mandates
+do not resolve. It captures:
+
+- The question being raised
+- The context (which documents were consulted)
+- The options considered
+- The recommended option and rationale
+- The decision made by the project manager
+- The date and the affected artifacts
+
+The template lives at `docs/decision/Decision Template.md`.
+
+When a decision is made, the resolved file is committed under
+`docs/decision/YYYY-MM-DD-<short-topic>.md`.
+
+Decisions are authoritative once recorded. They override task mandates
+but do not override contracts. If a decision requires a contract change,
+the contract must be updated separately through the normal PR process.
 
 Reserved for future design documents that are not contracts. Not used in
 this sprint.
@@ -324,15 +344,17 @@ Follow the contract.   Is it covered by a task mandate?
 
 If the hierarchy does not resolve a conflict:
 
-1. Post the conflict in the team channel.
-2. Tag the project manager (Kit Dustin).
-3. Wait for a decision before proceeding.
-4. Once decided, the decision is recorded in the relevant contract or
-   report.
+1. Copy `docs/decision/Decision Template.md` to
+   `docs/decision/YYYY-MM-DD-<short-topic>.md`.
+2. Fill in the question, context, options, and recommendation.
+3. Open a pull request that adds the file.
+4. Tag the project manager (Kit Dustin) in the PR.
+5. The project manager records the decision in the same file and merges.
+6. The decision is now authoritative. Reference it from any affected
+   contract or report.
 
 Silent workarounds are not permitted. Undocumented deviations invalidate
 any result that depends on them.
-
 ---
 
 ## 11. Change Control
