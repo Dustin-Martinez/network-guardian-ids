@@ -27,27 +27,34 @@ Design decisions
   training pool, not the raw pool.
 - Random state is imported from ``src.utils`` to guarantee a single seed
   across the entire pipeline.
+- TabNet regularization relies on lambda_sparse, bounded n_steps, ghost
+  batch normalization via virtual_batch_size, and validation-based early
+  stopping. There is no dropout parameter in pytorch-tabnet 4.1.0.
+- The TabNet final refit carves out an internal 10 percent validation
+  split for early stopping, matching the protection used during CV.
+- The ``per_class_recall_train`` field in each meta sidecar reports
+  recall on the training pool, not cross-validated recall. Use the
+  test-set evaluation in Notebook 03 for generalization metrics.
 """
 
 from __future__ import annotations
 
 import json
-import time
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 import joblib
 import numpy as np
 import optuna
+import pandas as pd
 import torch
 import xgboost as xgb
 from imblearn.under_sampling import TomekLinks
 from pytorch_tabnet.tab_model import TabNetClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, precision_recall_fscore_support
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, train_test_split
 
 from src.utils import PATHS, RANDOM_STATE, set_seed
 
@@ -72,10 +79,17 @@ XGB_MAX_ESTIMATORS: int = 300
 
 TABNET_MAX_EPOCHS: int = 30
 TABNET_PATIENCE: int = 10
+TABNET_REFIT_VALIDATION_FRACTION: float = 0.10
 TABNET_DEFAULT_BATCH_SIZE: int = 1024
 TABNET_DEFAULT_VIRTUAL_BATCH_SIZE: int = 128
 
 DEFAULT_MODEL: str = "xgboost"
+
+CANONICAL_CLASS_ORDER: tuple[str, ...] = ("normal", "dos", "probe", "r2l", "u2r")
+
+EXPECTED_TRAIN_ROWS: int = 109_188
+EXPECTED_TEST_ROWS: int = 36_396
+EXPECTED_FEATURE_COUNT: int = 43
 
 
 # =============================================================================
@@ -91,17 +105,51 @@ def load_processed_arrays() -> tuple[
     Returns:
         (X_train, y_train_str, X_test, y_test_str, class_order)
         where X arrays are float64 and y arrays are fixed-width strings.
+
+    Raises:
+        AssertionError: if the loaded arrays do not match the frozen
+        shapes recorded in the split contract.
     """
     X_train = np.load(PATHS.processed / "X_train.npy")
     X_test = np.load(PATHS.processed / "X_test.npy")
     y_train = np.load(PATHS.processed / "y_train.npy", allow_pickle=False)
     y_test = np.load(PATHS.processed / "y_test.npy", allow_pickle=False)
     class_order = json.load(open(PATHS.processed / "class_order.json"))
+
+    assert X_train.shape == (EXPECTED_TRAIN_ROWS, EXPECTED_FEATURE_COUNT), (
+        f"Unexpected X_train shape: {X_train.shape}. "
+        f"Expected ({EXPECTED_TRAIN_ROWS}, {EXPECTED_FEATURE_COUNT})."
+    )
+    assert X_test.shape == (EXPECTED_TEST_ROWS, EXPECTED_FEATURE_COUNT), (
+        f"Unexpected X_test shape: {X_test.shape}. "
+        f"Expected ({EXPECTED_TEST_ROWS}, {EXPECTED_FEATURE_COUNT})."
+    )
+    assert y_train.shape == (EXPECTED_TRAIN_ROWS,), (
+        f"Unexpected y_train shape: {y_train.shape}."
+    )
+    assert y_test.shape == (EXPECTED_TEST_ROWS,), (
+        f"Unexpected y_test shape: {y_test.shape}."
+    )
+
     return X_train, y_train, X_test, y_test, class_order
 
 
 def encode_labels(y_str: np.ndarray, class_order: list[str]) -> np.ndarray:
-    """Map string labels to integer indices using class_order."""
+    """Map string labels to integer indices using class_order.
+
+    The class order is frozen and must match the canonical order. Any
+    re-ordering would silently corrupt the integer labels consumed by
+    every model.
+
+    Raises:
+        ValueError: if class_order does not match the canonical order.
+    """
+    if list(class_order) != list(CANONICAL_CLASS_ORDER):
+        raise ValueError(
+            f"class_order mismatch. "
+            f"Expected {list(CANONICAL_CLASS_ORDER)}, "
+            f"received {list(class_order)}."
+        )
     mapping = {name: i for i, name in enumerate(class_order)}
     return np.array([mapping[v] for v in y_str], dtype=np.int64)
 
@@ -154,10 +202,13 @@ def clean_training_fold(
     it to a validation partition would remove evaluation rows and
     invalidate the CV score.
 
+    Uses ``n_jobs=1`` to avoid a joblib physical-core lookup warning on
+    Windows and to guarantee deterministic row ordering across machines.
+
     Returns:
         (X_cleaned, y_cleaned)
     """
-    tl = TomekLinks(sampling_strategy="auto", n_jobs=-1)
+    tl = TomekLinks(sampling_strategy="auto", n_jobs=1)
     X_clean, y_clean = tl.fit_resample(X, y)
     return np.asarray(X_clean, dtype=X.dtype), np.asarray(y_clean, dtype=y.dtype)
 
@@ -192,6 +243,14 @@ def per_class_metrics(
         }
         for i, name in enumerate(class_order)
     }
+
+
+def _safe_cv_std(study: optuna.Study) -> float:
+    """Standard deviation of completed trial values, or 0.0 if fewer than 2."""
+    values = [t.value for t in study.trials if t.value is not None]
+    if len(values) < 2:
+        return 0.0
+    return float(np.std(values))
 
 
 # =============================================================================
@@ -346,7 +405,6 @@ def xgb_objective(
         fold_score = macro_f1(y_val, y_pred)
         fold_scores.append(fold_score)
 
-        # Optuna pruning after each fold.
         trial.report(float(np.mean(fold_scores)), fold_idx)
         if trial.should_prune():
             raise optuna.TrialPruned()
@@ -388,19 +446,16 @@ def train_xgb(
 
     best_params = dict(study.best_params)
 
-    # Final refit on the full training pool, cleaned once.
     X_full, y_full = clean_training_fold(X_train, y_train)
     final_weights = sample_weight_from_classes(
         y_full, compute_class_weights(y_full)
     )
 
-    # Use best_iteration from the best trial for the final n_estimators.
     best_n_estimators = best_params.get("n_estimators", XGB_MAX_ESTIMATORS)
     best_params["n_estimators"] = best_n_estimators
     final_model = build_xgb(best_params)
     final_model.fit(X_full, y_full, sample_weight=final_weights, verbose=False)
 
-    # Diagnostics: per-class recall on the training pool for meta sidecar.
     train_pred = final_model.predict(X_full)
     train_per_class = per_class_metrics(y_full, train_pred, class_order)
 
@@ -412,13 +467,11 @@ def train_xgb(
         "best_trial_number": study.best_trial.number,
         "best_params": best_params,
         "cv_mean_macro_f1": float(study.best_value),
-        "cv_std_macro_f1": float(
-            np.std([t.value for t in study.trials if t.value is not None])
-        ),
+        "cv_std_macro_f1": _safe_cv_std(study),
         "fold_scores": [
             float(v) for v in study.best_trial.intermediate_values.values()
         ],
-        "per_class_recall_cv": {
+        "per_class_recall_train": {
             k: v["recall"] for k, v in train_per_class.items()
         },
         "feature_names": json.load(
@@ -433,20 +486,16 @@ def train_xgb(
 
     artifacts = save_xgb(final_model, meta)
 
-    # Trial log CSV.
     trials_df = study.trials_dataframe()
     trial_csv = output_dir / "optuna_xgb_trials.csv"
     trials_df.to_csv(trial_csv, index=False)
     artifacts["trial_csv"] = trial_csv
 
-    # Per-fold scores CSV from the best trial.
     fold_csv = output_dir / "xgb_cv_scores.csv"
     fold_rows = [
         {"fold": i, "macro_f1": float(v)}
         for i, v in study.best_trial.intermediate_values.items()
     ]
-    import pandas as pd
-
     pd.DataFrame(fold_rows).to_csv(fold_csv, index=False)
     artifacts["fold_csv"] = fold_csv
 
@@ -486,6 +535,10 @@ def build_tabnet(params: dict) -> TabNetClassifier:
     Only constructor arguments are passed to TabNetClassifier. Fit-time
     arguments (batch_size, virtual_batch_size, max_epochs, patience) are
     consumed by the .fit() call and are filtered out here if present.
+
+    Regularization is controlled through lambda_sparse, bounded n_steps,
+    and ghost batch normalization via virtual_batch_size. pytorch-tabnet
+    4.1.0 does not expose a dropout constructor argument.
     """
     fit_only_keys = {"batch_size", "virtual_batch_size", "max_epochs", "patience"}
 
@@ -581,6 +634,47 @@ def tabnet_objective(
     return float(np.mean(fold_scores))
 
 
+def _tabnet_refit(
+    params: dict,
+    X_full: np.ndarray,
+    y_full: np.ndarray,
+    random_state: int = RANDOM_STATE,
+) -> TabNetClassifier:
+    """Fit the final TabNet model on the full cleaned pool.
+
+    Carves out an internal stratified validation split (10 percent) for
+    early stopping during the refit. Class weights are computed from the
+    full cleaned pool before the split, so the weight scale matches the
+    CV folds.
+    """
+    weights = compute_class_weights(y_full)
+
+    X_tr, X_val, y_tr, y_val = train_test_split(
+        X_full,
+        y_full,
+        test_size=TABNET_REFIT_VALIDATION_FRACTION,
+        random_state=random_state,
+        stratify=y_full,
+    )
+
+    model = build_tabnet(params)
+    model.fit(
+        X_train=X_tr,
+        y_train=y_tr,
+        eval_set=[(X_val, y_val)],
+        eval_name=["val"],
+        eval_metric=["logloss"],
+        weights=weights,
+        max_epochs=TABNET_MAX_EPOCHS,
+        patience=TABNET_PATIENCE,
+        batch_size=params["batch_size"],
+        virtual_batch_size=params["virtual_batch_size"],
+        num_workers=0,
+        drop_last=False,
+    )
+    return model
+
+
 def train_tabnet(
     X_train: np.ndarray,
     y_train: np.ndarray,
@@ -611,22 +705,9 @@ def train_tabnet(
 
     best_params = dict(study.best_params)
 
-    # Final refit on the full cleaned training pool.
     X_full, y_full = clean_training_fold(X_train, y_train)
-    final_weights = compute_class_weights(y_full)
 
-    final_model = build_tabnet(best_params)
-    final_model.fit(
-        X_train=X_full,
-        y_train=y_full,
-        weights=final_weights,
-        max_epochs=TABNET_MAX_EPOCHS,
-        patience=TABNET_MAX_EPOCHS,  # no early stopping on final refit
-        batch_size=best_params["batch_size"],
-        virtual_batch_size=best_params["virtual_batch_size"],
-        num_workers=0,
-        drop_last=False,
-    )
+    final_model = _tabnet_refit(best_params, X_full, y_full, RANDOM_STATE)
 
     train_pred = final_model.predict(X_full)
     train_per_class = per_class_metrics(y_full, train_pred, class_order)
@@ -639,13 +720,11 @@ def train_tabnet(
         "best_trial_number": study.best_trial.number,
         "best_params": best_params,
         "cv_mean_macro_f1": float(study.best_value),
-        "cv_std_macro_f1": float(
-            np.std([t.value for t in study.trials if t.value is not None])
-        ),
+        "cv_std_macro_f1": _safe_cv_std(study),
         "fold_scores": [
             float(v) for v in study.best_trial.intermediate_values.values()
         ],
-        "per_class_recall_cv": {
+        "per_class_recall_train": {
             k: v["recall"] for k, v in train_per_class.items()
         },
         "architecture": {
@@ -660,7 +739,10 @@ def train_tabnet(
         "n_train": int(len(X_train)),
         "n_features": int(X_train.shape[1]),
         "random_state": RANDOM_STATE,
-        "notes": "Final refit on full cleaned training pool.",
+        "notes": (
+            "Final refit on full cleaned training pool with an internal "
+            "10 percent validation split for early stopping."
+        ),
     }
 
     artifacts = save_tabnet(final_model, meta)
@@ -669,8 +751,6 @@ def train_tabnet(
     trial_csv = output_dir / "optuna_tabnet_trials.csv"
     trials_df.to_csv(trial_csv, index=False)
     artifacts["trial_csv"] = trial_csv
-
-    import pandas as pd
 
     fold_csv = output_dir / "tabnet_cv_scores.csv"
     fold_rows = [
@@ -723,30 +803,32 @@ def run_full_training(
     Returns:
         {model_name: result_dict} for each model that completed.
     """
-    import pandas as pd
-
     set_seed(RANDOM_STATE)
     X_train, y_train_str, _, _, class_order = load_processed_arrays()
     y_train = encode_labels(y_train_str, class_order)
 
     results: dict[str, dict] = {}
 
-    # Random Forest may not be implemented yet; guard with try.
-    try:
-        results["random_forest"] = train_rf(
-            X_train, y_train, class_order, n_trials=n_trials_rf
-        )
-    except NotImplementedError as exc:
-        results["random_forest"] = {"error": str(exc)}
+    trainers = [
+        ("random_forest", lambda: train_rf(
+            X_train, y_train, class_order, n_trials=n_trials_rf, n_folds=N_FOLDS_RF
+        )),
+        ("xgboost", lambda: train_xgb(
+            X_train, y_train, class_order, n_trials=n_trials_xgb, n_folds=N_FOLDS_XGB
+        )),
+        ("tabnet", lambda: train_tabnet(
+            X_train, y_train, class_order, n_trials=n_trials_tabnet, n_folds=N_FOLDS_TABNET
+        )),
+    ]
 
-    results["xgboost"] = train_xgb(
-        X_train, y_train, class_order, n_trials=n_trials_xgb
-    )
-    results["tabnet"] = train_tabnet(
-        X_train, y_train, class_order, n_trials=n_trials_tabnet
-    )
+    for name, trainer in trainers:
+        try:
+            results[name] = trainer()
+        except NotImplementedError as exc:
+            results[name] = {"error": f"not implemented: {exc}"}
+        except Exception as exc:
+            results[name] = {"error": f"{type(exc).__name__}: {exc}"}
 
-    # Comparison table.
     rows = []
     for model_name, r in results.items():
         if "error" in r:

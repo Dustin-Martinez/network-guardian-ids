@@ -1,20 +1,84 @@
 # Team Task Delegation Matrix: Network Guardian IDS
-ctrl+shift+V for much cleaner look  and use the same to revert
 
-This document formalizes the division of labor across the project lifecycle. Each member has a dedicated operational mandate detailing their exact phases, dependencies, and file responsibilities.
+This document formalizes the division of labor across the project
+lifecycle. Each member has a dedicated operational mandate detailing
+their exact phases, dependencies, and file responsibilities.
 
-## Team Roster & Task Board References
+---
+
+## Team Roster
 
 | Member | Primary Role | Secondary Role | Operational Mandate |
-| :--- | :--- | :--- | :--- |
-| **Kit Dustin** (User) | Project Manager | Data Preparation & Advanced Model Developer | See `tasks/role_1.md` |
-| **Markie** | Paper Lead | Evaluation, Explainability (XAI) & Backend | See `tasks/role_2.md` |
-| **Amber** | Model Developer (Random Forest) | UI / UX Designer | See `tasks/role_3r.md` |
-| **Kenneth** | Video Producer & Technical Tester | Execution & Verification Lead | See `tasks/role.md` |
+|---|---|---|---|
+| Kit Dustin | Project Manager | Data Preparation & Advanced Model Developer | `docs/tasks/1.md` |
+| Markie | Paper Lead | Backend Designer | `docs/tasks/2.md` |
+| Amber | Model Developer (Random Forest) | UI/UX Designer | `docs/tasks/3.md` |
+| Kenneth | Execution Lead (XGBoost) | Technical Tester & Video Producer | `docs/tasks/4.md` |
+| Dwayne | Evaluation Engineer (TabNet Executor) | Explainability Contributor | `docs/tasks/5.md` |
 
-## Workflow & Presentation Hand-Off Protocol
+---
 
-1. **Phase 1 (Data Prep & Modeling Code):** Kit Dustin builds the data preparation pipeline and writes the core logic for XGBoost and TabNet. Amber writes the Random Forest logic.
-2. **Phase 2 (Execution & Tuning):** Kenneth takes over the finalized scripts to run heavy training loops, Optuna tuning, and verification across all models under Stratified K-Fold splits.
-3. **Phase 3 (Evaluation & UI):** Markie executes the evaluation and SHAP explainability analyses using the trained models. Markie and Amber concurrently build and link the FastAPI backend and TSX frontend.
-4. **Phase 4 (Documentation & Video Delivery):** Markie and Kenneth finalize the written documentation[cite: 1, 2]. Kenneth produces the final video presentation (`.mp4`), ensuring all members appear on-camera to present their respective components[cite: 1].
+## Model Ownership
+
+| Model | Code Owner | Execution Owner | Estimated Wall Time |
+|---|---|---|---|
+| Random Forest | Amber | Amber | 1.5–3 hours |
+| XGBoost | Kit | Kenneth | 4–6 hours |
+| TabNet | Kit | Dwayne | 6–8 hours |
+
+Execution on three separate machines. No resource contention.
+
+---
+
+## Cross-Role Contracts
+
+| Contract | Owner | Governs |
+|---|---|---|
+| `docs/contracts/api_data_contract.md` | Kit | Client, Express, bridge payloads |
+| `docs/contracts/role-3-rf-architecture-spec.md` | Kit | Random Forest implementation for Amber |
+| `docs/contracts/role-4-training-execution-spec.md` | Kit | XGBoost execution for Kenneth |
+| `docs/contracts/role-5-training-execution-spec.md` | Kit | TabNet execution for Dwayne |
+| `docs/contracts/branch_protection_policy.md` | Kit | Branch naming, PR rules, admin bypass |
+
+---
+
+## Workflow and Presentation Hand-Off Protocol
+
+### Phase 1 — Data Preparation and Modeling Code
+
+- **Kit** builds the data preparation pipeline. Writes `src/utils.py`,
+  `src/data_prep.py`, `src/encoding.py`.
+- **Kit** writes the core logic for XGBoost and TabNet in
+  `src/models.py`.
+- **Amber** writes the Random Forest logic in the RF section of
+  `src/models.py` against the RF architecture contract.
+
+### Phase 2 — Execution and Tuning
+
+- **Kenneth** runs the XGBoost training loop (Notebook 02 Cells 7 and 8)
+  following `docs/contracts/role-4-training-execution-spec.md`.
+- **Dwayne** runs the TabNet training loop (Notebook 02 Cells 9 and 10)
+  following `docs/contracts/role-5-training-execution-spec.md`.
+- **Amber** runs the Random Forest training loop (Notebook 02 Cells 5
+  and 6) following the RF architecture contract.
+
+All three runs proceed on separate machines to parallelize compute.
+
+### Phase 3 — Evaluation, XAI, and UI
+
+- **Dwayne** produces confusion matrices, per-class metrics,
+  precision-recall curves, and the model comparison figure.
+- **Dwayne** produces SHAP summary plots for Random Forest and XGBoost,
+  plus TabNet attention mask visualizations.
+- **Markie** integrates Dwayne's figures into the paper and drafts the
+  narrative interpretation.
+- **Markie** builds the Node.js Express backend and the Python inference
+  bridge (`server/server.js`, `server/predict_bridge.py`).
+- **Amber** builds the Next.js dashboard and wires it to the backend.
+
+### Phase 4 — Documentation and Video Delivery
+
+- **Markie** finalizes the paper, executive summary, and discovery log.
+- **Kenneth** produces the final video presentation (`.mp4`), ensuring
+  all members appear on-camera to present their respective components.
+- **Kit** runs the final review pass and manages the submission package.
