@@ -27,6 +27,8 @@ from typing import Any
 
 import numpy as np
 
+os.environ.setdefault("LOKY_MAX_CPU_COUNT", "8")
+
 # ---------------------------------------------------------------------------
 # Reproducibility constants
 # ---------------------------------------------------------------------------

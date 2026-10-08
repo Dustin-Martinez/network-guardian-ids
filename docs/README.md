@@ -270,6 +270,7 @@ downstream consumer:
 | 2 | Markie | `docs/reports/role-2-*` |
 | 3 | Amber | `docs/reports/role-3-*` |
 | 4 | Kenneth | `docs/reports/role-4-*` |
+| 5 | Dwayne | `docs/reports/role-5-*`, evaluation outputs |
 
 Each role reports to the project manager for coordination but owns its
 folder's content.
