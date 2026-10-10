@@ -3,7 +3,17 @@
 **Title:** Execution Lead (XGBoost), Technical Tester & Video Producer
 
 ---
-
+ `docs/SETUP.md` — onboarding guide; complete this before any other task
+- **Instructions:**
+  1. Complete `docs/SETUP.md` sections 1 through 10. Confirm that
+     Notebook 01 has been run, `data/processed/` exists, and the four
+     frozen hashes print `OK`.
+  2. Clone the repository. Create `.venv` on Python 3.11.9. Install
+     `requirements.txt`. Run `python src/verify_env.py` and confirm
+     `RESULT: Phase 1 environment verification PASSED.` Ensure the
+     machine can allocate sufficient memory for a continuous 6-hour
+     XGBoost run.
+---
 ## Phase 1: Environment and Test Automation Setup
 
 **Documents to reference:**
