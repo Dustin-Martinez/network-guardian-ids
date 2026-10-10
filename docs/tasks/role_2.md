@@ -3,33 +3,27 @@
 **Title:** Paper Lead & Backend Designer
 
 ---
- `docs/SETUP.md` — onboarding guide; complete this before any other task
- - **Instructions:**
-  1. Complete `docs/SETUP.md` sections 1 through 10. Confirm that
-     Notebook 01 has been run, `data/processed/` exists, and the four
-     frozen hashes print `OK`.
-  2. Navigate to `client/` (`cd client`) and run `npm run dev` to
-     launch the dev server on `http://localhost:3000`.
-  ... (existing steps renumbered)
----
-
----
-
 ## Phase 1: Documentation Scaffolding
 
 **Documents to reference:**
+- `docs/SETUP.md` — onboarding guide; complete this before any other task
 - `docs/reports/paper_structure.md` — the paper's required sections and formatting
 - `docs/reports/paper_narrative_context.md` — source material for Introduction, Problem Statement, Methodology
 - `docs/README.md` — documentation hierarchy and escalation
 
-- **Dependencies:** None.
+- **Dependencies:** GitHub repository access.
 - **Target Files:** `docs/reports/discovery_log.md`,
   `docs/reports/executive_summary.md`,
   `docs/reports/presentation_script.md`.
-- **Instructions:** Set up the formatting for all final academic
-  deliverables. Begin drafting the Executive Summary structure based
-  on the six mandatory rubric questions. Establish the presentation
-  script outline.
+- **Instructions:**
+  1. Complete `docs/SETUP.md` sections 1 through 10. Confirm that
+     Notebook 01 has been run, `data/processed/` exists, and the four
+     frozen hashes print `OK`.
+  2. Set up the formatting for all final academic deliverables.
+  3. Begin drafting the Executive Summary structure based on the six
+     mandatory rubric questions.
+  4. Establish the presentation script outline.
+- **Handoff:** Phase 1 completion noted in the sprint report.
 
 **Sprint report name:**
 `docs/reports/role-2-phase-1-markie-documentation-scaffolding.md`
