@@ -5,10 +5,10 @@
 Executor
 
 ---
-
 ## Phase 1: Onboarding and Environment
 
 **Documents to reference:**
+- `docs/SETUP.md` — onboarding guide; complete this before any other task
 - `docs/README.md` — documentation hierarchy and escalation
 - `docs/contracts/role-5-training-execution-spec.md` — the TabNet execution contract
 - `docs/contracts/role-4-training-execution-spec.md` — the XGBoost execution contract, for reference on sibling format
@@ -16,19 +16,18 @@ Executor
 - `src/verify_env.py` — verification script
 - `src/utils.py` — the environment setup, including the LOKY_MAX_CPU_COUNT default
 
-- **Dependencies:** GitHub repository access, project documentation.
+- **Dependencies:** GitHub repository access.
 - **Target Files:** Local `.venv` on Python 3.11.9.
 - **Instructions:**
-  1. Clone the repository.
-  2. Create `.venv` and install `requirements.txt`.
-  3. Run `python src/verify_env.py`. Confirm `RESULT: Phase 1
-     environment verification PASSED.`
-  4. Read `docs/README.md` for the documentation hierarchy.
-  5. Read `docs/contracts/role-5-training-execution-spec.md` for the
-     TabNet execution contract.
-  6. Confirm the laptop is available for a continuous 8-hour run.
-  7. Confirm sleep and hibernate timers are disabled.
-  8. Post in the team channel when all steps are complete.
+  1. Complete `docs/SETUP.md` sections 1 through 10. This covers
+     cloning the repository, creating `.venv` on Python 3.11.9,
+     installing `requirements.txt`, running `python src/verify_env.py`,
+     running Notebook 01 to generate `data/processed/`, verifying the
+     data shapes, and verifying the four frozen hashes.
+  2. Confirm the laptop is available for a continuous 8-hour run.
+  3. Confirm sleep and hibernate timers are disabled.
+  4. Post in the team channel when all steps are complete.
+- **Handoff:** Phase 1 completion noted in the sprint report.
 
 **Environment tuning — optional but recommended:**
 
