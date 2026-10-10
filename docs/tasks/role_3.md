@@ -1,7 +1,15 @@
 # Operational Mandate: Role 3 - Amber
 
 **Title:** Model Developer (Random Forest) & UI/UX Designer
-
+---
+ `docs/SETUP.md` — onboarding guide; complete this before any other task
+- **Instructions:**
+  1. Complete `docs/SETUP.md` sections 1 through 10. Confirm that
+     Notebook 01 has been run, `data/processed/` exists, and the four
+     frozen hashes print `OK`.
+  2. Navigate to `client/` (`cd client`) and run `npm run dev` to
+     launch the dev server on `http://localhost:3000`.
+  ... (existing steps renumbered)
 ---
 
 ## Phase 1: Frontend TSX Architecture
