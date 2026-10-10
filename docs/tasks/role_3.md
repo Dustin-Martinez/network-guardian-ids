@@ -32,6 +32,7 @@
 
 **Sprint report name:**
 `docs/reports/role-3-phase-1-amber-frontend-scaffold.md`
+
 ---
 
 ## Phase 2: Random Forest Development
