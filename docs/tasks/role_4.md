@@ -3,33 +3,28 @@
 **Title:** Execution Lead (XGBoost), Technical Tester & Video Producer
 
 ---
- `docs/SETUP.md` — onboarding guide; complete this before any other task
-- **Instructions:**
-  1. Complete `docs/SETUP.md` sections 1 through 10. Confirm that
-     Notebook 01 has been run, `data/processed/` exists, and the four
-     frozen hashes print `OK`.
-  2. Clone the repository. Create `.venv` on Python 3.11.9. Install
-     `requirements.txt`. Run `python src/verify_env.py` and confirm
-     `RESULT: Phase 1 environment verification PASSED.` Ensure the
-     machine can allocate sufficient memory for a continuous 6-hour
-     XGBoost run.
----
 ## Phase 1: Environment and Test Automation Setup
 
 **Documents to reference:**
+- `docs/SETUP.md` — onboarding guide; complete this before any other task
 - `requirements.txt` — the pinned dependencies
 - `src/verify_env.py` — the environment verification script
 - `docs/README.md` — documentation hierarchy
 - `docs/contracts/role-4-training-execution-spec.md` — the execution contract Kenneth will follow in Phase 2
 
-- **Dependencies:** Kit has pushed `requirements.txt` and
-  `src/verify_env.py`.
+- **Dependencies:** GitHub repository access.
 - **Target Files:** Local `.venv`, cloned repository.
-- **Instructions:** Clone the repository. Create `.venv` on Python
-  3.11.9. Install `requirements.txt`. Run `python src/verify_env.py`
-  and confirm `RESULT: Phase 1 environment verification PASSED.`
-  Ensure the machine can allocate sufficient memory for a continuous
-  6-hour XGBoost run.
+- **Instructions:**
+  1. Complete `docs/SETUP.md` sections 1 through 10. This covers
+     cloning the repository, creating `.venv` on Python 3.11.9,
+     installing `requirements.txt`, running `python src/verify_env.py`,
+     running Notebook 01 to generate `data/processed/`, verifying the
+     data shapes, and verifying the four frozen hashes.
+  2. Confirm the machine can allocate sufficient memory for a
+     continuous 6-hour XGBoost run.
+  3. Confirm sleep and hibernate timers are disabled.
+  4. Post in the team channel when all steps are complete.
+- **Handoff:** Phase 1 completion noted in the sprint report.
 
 **Sprint report name:**
 `docs/reports/role-4-phase-1-kenneth-environment-setup.md`
