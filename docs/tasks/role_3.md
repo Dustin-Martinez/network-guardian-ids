@@ -1,31 +1,34 @@
 # Operational Mandate: Role 3 - Amber
 
 **Title:** Model Developer (Random Forest) & UI/UX Designer
-
 ---
-
 ## Phase 1: Frontend TSX Architecture
 
 **Documents to reference:**
+- `docs/SETUP.md` — onboarding guide; complete this before any other task
 - `docs/contracts/api_data_contract.md` — TypeScript interfaces for `NetworkPacketRequest` and `PredictionResponse`
 - `docs/design/ui_spec.md` — color palette, layout, panel specifications (if the file exists)
 - `docs/reports/paper_narrative_context.md` section 13 — source pointer index
 
-- **Dependencies:** None. Can be started concurrently with data
-  preparation.
+- **Dependencies:** GitHub repository access. Can be started
+  concurrently with data preparation.
 - **Target Directory:** `client/` (Next.js/React TSX App Router).
 - **Target Files:** `client/src/app/page.tsx`,
   `client/src/components/*`.
 - **Instructions:**
-  1. Navigate to `client/` (`cd client`) and run `npm run dev` to
+  1. Complete `docs/SETUP.md` sections 1 through 10. Confirm that
+     Notebook 01 has been run, `data/processed/` exists, and the four
+     frozen hashes print `OK`.
+  2. Navigate to `client/` (`cd client`) and run `npm run dev` to
      launch the dev server on `http://localhost:3000`.
-  2. Design the Security Operations Center (SOC) interactive dashboard
+  3. Design the Security Operations Center (SOC) interactive dashboard
      using Tailwind CSS.
-  3. Build input forms for the network telemetry features defined in
-     `contracts/api_data_contract.md` section 2. Fields `protocol_type`,
-     `service`, and `flag` are strings, not integers.
-  4. Build the alert module to render threat predictions and
+  4. Build input forms for the network telemetry features defined in
+     `docs/contracts/api_data_contract.md` section 2. Fields
+     `protocol_type`, `service`, and `flag` are strings, not integers.
+  5. Build the alert module to render threat predictions and
      confidence meters.
+- **Handoff:** Phase 1 completion noted in the sprint report.
 
 **Sprint report name:**
 `docs/reports/role-3-phase-1-amber-frontend-scaffold.md`

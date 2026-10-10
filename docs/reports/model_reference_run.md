@@ -15,6 +15,7 @@ execution).
 - `docs/contracts/role-5-training-execution-spec.md` — TabNet run
 - `docs/contracts/role-3-rf-architecture-spec.md` — Random Forest run
 - `data/processed/split_indices.json` — frozen split contract
+- `docs/SETUP.md` — onboarding and first-run guide
 
 ---
 
@@ -274,9 +275,12 @@ Filled after all three runs complete. Populated from
 
 ## 7. How to Compare Your Run
 
+Prerequisite: `docs/SETUP.md` sections 1 through 9 must be complete.
+This ensures `data/processed/` has been generated and the frozen
+hashes verified.
+
 After running a model's training cell, read the corresponding meta
 sidecar and compare against the values in sections 3, 4, or 5 above.
-
 ### 7.1 For Random Forest
 
 ```powershell

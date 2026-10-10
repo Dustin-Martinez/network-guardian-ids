@@ -16,6 +16,8 @@ Read this file before acting on any other `docs/` file.
 docs/
 ├── README.md                 <- this file (highest precedence for
 │                                 navigation and conflict resolution)
+├── SETUP.md                  <- onboarding: what to run first, in
+│                                 order, from a clean clone
 ├── contracts/                <- authoritative technical agreements
 ├── tasks/                    <- role mandates (scope and sequence)
 ├── reports/                  <- execution records and deliverables
@@ -126,6 +128,21 @@ the contract must be updated separately through the normal PR process.
 
 Reserved for future design documents that are not contracts. Not used in
 this sprint.
+
+### 3.5 `docs/SETUP.md`
+
+Onboarding guide. Tells every teammate, in order, what to do from a
+clean clone to a runnable state. Read this file second, right after
+`docs/README.md`.
+
+The setup guide covers: environment creation, dependency installation,
+running Notebook 01 to generate `data/processed/`, verifying the
+frozen artifact hashes, and confirming readiness before running any
+training cell.
+
+Any teammate who cannot run their assigned cells should check
+`docs/SETUP.md` section 4 (Common Problems) before posting in the
+team channel.
 
 ---
 
@@ -260,6 +277,11 @@ downstream consumer:
 - `data/processed/encoder_onehot_protocol_flag.pkl`
 - `data/processed/scaler_tabnet.pkl`
 
+### 6.6 Before asking, check SETUP.md
+
+If you cannot run a cell, a file is missing, or hash verification
+fails, `docs/SETUP.md` section 4 likely has the answer. Check it
+before posting in the team channel.
 ---
 
 ## 7. Roles in the Sprint
