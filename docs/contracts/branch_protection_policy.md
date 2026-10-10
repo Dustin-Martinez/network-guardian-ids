@@ -4,12 +4,18 @@ This document outlines the version control policies and security rulesets enforc
 
 ---
 
-## 🔒 1. Universal Protection Scope
-To maintain clean commit histories, prevent accidental overwrites, and ensure code quality, protection rules apply **universally to all branches** (`All branches`).
+## 1. Protection Scope
 
-* **Effect on Team Members:** Direct code pushes (`git push`) to any branch—including `main`, feature branches, or hotfixes—are strictly blocked. All code additions must go through a **Pull Request (PR)**.
-* **Effect on Project Manager (Kit Dustin):** Added explicitly to the **Bypass List** as Repository Administrator with `Always` permissions to allow hotfixes, rapid integration, and final PR merges without waiting for review locks.
+Branch protection rules are applied to the `main` branch only. Feature
+branches accept direct pushes from their owners.
 
+* **Effect on Team Members:** Direct pushes to `main` are blocked. All
+  merges into `main` must go through a Pull Request. Direct pushes to
+  your own feature branch are allowed and expected.
+* **Effect on Project Manager (Kit Dustin):** Added to the bypass list
+  as Repository Administrator with `Always` permissions, allowing
+  hotfixes and rapid integration on `main` without waiting for review
+  locks.
 ---
 
 ## 🛠️ 2. Rule Configuration Matrix
@@ -18,7 +24,7 @@ The following parameters are actively enforced under GitHub Repository Rulesets:
 
 | Configuration Setting | Enforced State | Operational Effect |
 | :--- | :--- | :--- |
-| **Rule Target** | `All branches` | Rules apply to every current and future branch created in the repository. |
+| Rule Target | `main` only | Rules apply only to the `main` branch. Feature branches are unrestricted. |
 | **Bypass List** | `Repository Admin` (`Always`) | Project Manager retains unrestricted direct push and single-actor merge authority. |
 | **Require a pull request before merging** | `ENABLED` | Code must be reviewed via PR before being integrated. |
 | **Required Approvals** | `1 Approval` | At least one teammate must review and approve code contributions. |
