@@ -10,6 +10,7 @@ sign-off.
 - `docs/contracts/api_data_contract.md` — feature ordering and payloads
 - `docs/README.md` — documentation hierarchy and escalation
 - `docs/decision/Decision Template.md` — how to raise a decision
+- `docs/SETUP.md` — prerequisite onboarding guide
 
 ---
 
@@ -96,6 +97,16 @@ Data OK. X_train (109188, 43) classes ['normal', 'dos', 'probe', 'r2l', 'u2r']
 If this fails, stop and contact Kit.
 
 ### 3.3 Notebook
+
+Before opening the notebook, confirm that `docs/SETUP.md` sections 1
+through 10 are complete. In particular:
+
+- `python src/verify_env.py` prints `RESULT: Phase 1 environment
+  verification PASSED.`
+- `data/processed/` exists with all expected files.
+- The four frozen hashes print `OK`.
+
+Then:
 
 - Open `notebooks/02_Model_Training.ipynb`
 - Confirm the path-fix cell (Cell 2) runs and prints the repository
