@@ -111,11 +111,12 @@ Then:
 - Open `notebooks/02_Model_Training.ipynb`
 - Confirm the path-fix cell (Cell 2) runs and prints the repository
   root
-- Confirm Cells 1 through 4 run without error
+- Confirm Cells 3 and 4 run without error. Cell 3 loads the arrays
+  and encodes the labels. Cell 4 asserts the class order.
 - **Do not run Cells 5 or 6.** Those are Amber's Random Forest cells.
 - **Do not run Cells 7 or 8.** Those are Kenneth's XGBoost cells.
 
-If any of Cells 1 through 4 fail, stop and paste the error into the
+If any of Cells 2 through 4 fail, stop and paste the error into the
 team channel.
 
 ### 3.4 Machine State
@@ -187,37 +188,24 @@ documented in the Phase 3 report section 5.3.
 At the start, the cell prints:
 
 ```
-Training TabNet...
-Running 20 Optuna trials with 3-fold CV each.
-Estimated wall time: 6 to 8 hours.
-This run is CPU-bound and will produce heavy CPU load.
+TabNet CV Macro F1: <value>
 ```
 
-During training, pytorch-tabnet's per-epoch progress output is
-suppressed because `verbose=0` is set in `build_tabnet`. Optuna prints
-one trial summary per completed trial:
+Optuna is configured at WARNING log level and does not print per-trial
+progress to stdout. pytorch-tabnet's per-epoch output is suppressed
+because `verbose=0` is set in `build_tabnet`. During the run the
+terminal appears idle except for the initial notification.
 
-```
-[I 2026-10-06 02:15:44,912] Trial 0 finished with value: 0.8612 and parameters: {...}.
-[I 2026-10-06 02:48:19,233] Trial 1 finished with value: 0.8734 and parameters: {...}.
-[I 2026-10-06 03:22:11,554] Trial 2 finished with value: 0.8801 and parameters: {...}.
-...
-```
+To monitor progress without terminal output, watch the SQLite study
+database:
 
-At the end, the cell prints a summary block:
-
-```
-TabNet study complete.
-Best trial: 11
-Best CV Macro F1: 0.8911
-Final model refit on the full cleaned training pool.
-Saved: models/tabnet_best.zip
-Saved: models/tabnet_best.meta.json
-Saved: outputs/02_training/optuna_tabnet_trials.csv
-Saved: outputs/02_training/tabnet_cv_scores.csv
+```powershell
+Get-ChildItem outputs\02_training\optuna_study_tabnet.db |
+    Select-Object LastWriteTime, Length
 ```
 
-The exact numbers will differ. The structure of the output will not.
+The file's modification time advances after each completed trial. A
+stalled study shows no modification for over 90 minutes.
 
 ### 5.3 Expected duration
 
@@ -238,17 +226,15 @@ If the run exceeds 12 hours, something is wrong. See section 7.
 
 ### 5.4 Monitoring during the run
 
-TabNet trials are longer than XGBoost trials. Check in every 60 to 90
-minutes. The key signals are:
+TabNet trials are longer than XGBoost trials. Check the SQLite file
+every 60 to 90 minutes as shown in section 5.2.
 
-- Optuna continues to print trial summaries
-- CPU usage remains near 100%
+If the SQLite file has not been modified for over 90 minutes and CPU
+usage is still high, the run is working on a slow trial. This is
+expected occasionally.
 
-If nothing prints for over 90 minutes and CPU usage is still high, the
-run is working on a slow trial. This is expected occasionally.
-
-If nothing prints for over 120 minutes AND CPU usage is near zero, the
-run has stalled. See section 7.1.
+If the file has not been modified for over 120 minutes AND CPU usage
+is near zero, the run has stalled. See section 7.1.
 
 ### 5.5 Required Notebook Cell Content
 
@@ -258,23 +244,9 @@ exactly the following code. No additions, no reordering, no changes.
 #### Cell 9 — TabNet Tuning
 
 ```python
-import json
-import numpy as np
-from src.models import (
-    load_processed_arrays,
-    encode_labels,
-    train_tabnet,
-)
-from src.utils import PATHS, RANDOM_STATE, set_seed
-
-set_seed(RANDOM_STATE)
-
-X_train, y_train_str, _, _, class_order = load_processed_arrays()
-y_train = encode_labels(y_train_str, class_order)
-
-assert class_order == ["normal", "dos", "probe", "r2l", "u2r"], (
-    f"Class order mismatch: {class_order}"
-)
+# TabNet training (Dwayne, Role 5)
+# Contract: docs/contracts/role-5-training-execution-spec.md
+# Estimated wall time: 6 to 8 hours
 
 tabnet_result = train_tabnet(
     X_train=X_train,
@@ -289,16 +261,16 @@ print("TabNet CV Macro F1:", tabnet_result["cv_mean_macro_f1"])
 #### Cell 10 — TabNet Save Verification
 
 ```python
-from src.utils import PATHS
+# TabNet artifact verification (Dwayne, Role 5)
 
-assert (PATHS.models / "tabnet_best.zip").is_file(), "Model missing"
-assert (PATHS.models / "tabnet_best.meta.json").is_file(), "Meta missing"
+assert (PATHS.models / "tabnet_best.zip").is_file(), "TabNet model missing"
+assert (PATHS.models / "tabnet_best.meta.json").is_file(), "TabNet meta missing"
 print("TabNet artifacts verified.")
 ```
 
-Rationale: pinning the cell bodies removes any ambiguity about how the
-arrays are loaded, how the labels are encoded, and how `train_tabnet`
-is invoked. If Dwayne or any future executor modifies these cells, the
+Rationale: the arrays `X_train`, `y_train`, and `class_order` are
+provided by shared setup Cells 3 and 4. Cell 9 calls `train_tabnet`
+directly. If Dwayne or any future executor modifies these cells, the
 resulting model diverges from the reference and the change must be
 raised as a decision.
 
@@ -310,7 +282,8 @@ raised as a decision.
 
 If the machine sleeps during the run, the process is usually paused
 but not killed. On wake, the run continues from where it left off.
-Verify by checking that Optuna still prints trial summaries.
+Verify by checking that the SQLite study database's modification time
+advances.
 
 If the machine shuts down, the process is killed. On restart:
 
@@ -461,8 +434,8 @@ meta = json.load(open(PATHS.models / 'tabnet_best.meta.json'))
 print('CV Macro F1 :', meta['cv_mean_macro_f1'])
 print('CV std      :', meta['cv_std_macro_f1'])
 print('Best trial  :', meta['best_trial_number'])
-print('U2R recall  :', meta['per_class_recall_cv']['u2r'])
-print('R2L recall  :', meta['per_class_recall_cv']['r2l'])
+print('U2R recall  :', meta['per_class_recall_train']['u2r'])
+print('R2L recall  :', meta['per_class_recall_train']['r2l'])
 "
 ```
 
@@ -594,7 +567,7 @@ Dwayne runs through this checklist before beginning the training run.
 - [ ] `python src/verify_env.py` prints PASSED
 - [ ] Data integrity check (section 3.2) passes
 - [ ] Notebook 02 opens, path-fix cell runs
-- [ ] Cells 1 through 4 complete without error
+- [ ] Cells 3 and 4 complete without error
 - [ ] Cells 9 and 10 contain exactly the code in section 5.5
 - [ ] Machine has been restarted or RAM freed within the last 6 hours
 - [ ] Sleep and hibernate timers disabled (section 6.1)
@@ -606,3 +579,5 @@ Dwayne runs through this checklist before beginning the training run.
 
 After the checklist passes, Dwayne runs Cell 9 and monitors as
 described in section 5.4.
+
+--END OF DOCUMENT--
