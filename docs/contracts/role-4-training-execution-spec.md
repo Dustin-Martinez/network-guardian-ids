@@ -11,7 +11,7 @@ sign-off.
 - `docs/README.md` — documentation hierarchy and escalation
 - `docs/decision/Decision Template.md` — how to raise a decision
 - `docs/SETUP.md` — prerequisite onboarding guide
-  
+
 ---
 
 ## 1. Purpose
@@ -105,11 +105,12 @@ Then:
 - Open `notebooks/02_Model_Training.ipynb`
 - Confirm the path-fix cell (Cell 2) runs and prints the repository
   root
-- Confirm Cells 1 through 4 run without error
+- Confirm Cells 3 and 4 run without error. Cell 3 loads the arrays
+  and encodes the labels. Cell 4 asserts the class order.
 - **Do not run Cells 5 or 6.** Those are Amber's Random Forest cells.
 - **Do not run Cells 9 or 10.** Those are Dwayne's TabNet cells.
 
-If any of Cells 1 through 4 fail, stop and paste the error into the
+If any of Cells 2 through 4 fail, stop and paste the error into the
 team channel.
 
 ### 3.4 Machine State
@@ -171,34 +172,23 @@ the following sequence:
 At the start, the cell prints:
 
 ```
-Training XGBoost...
-Running 30 Optuna trials with 5-fold CV each.
-Estimated wall time: 4 to 6 hours.
+XGBoost CV Macro F1: <value>
 ```
 
-During training, Optuna prints one trial summary per completed trial:
+Optuna is configured at WARNING log level and does not print per-trial
+progress to stdout. During the run the terminal appears idle except
+for the initial notification.
 
-```
-[I 2026-10-05 08:12:31,072] Trial 0 finished with value: 0.8842 and parameters: {...}.
-[I 2026-10-05 08:25:14,331] Trial 1 finished with value: 0.8891 and parameters: {...}.
-[I 2026-10-05 08:37:52,011] Trial 2 finished with value: 0.8913 and parameters: {...}.
-...
-```
+To monitor progress without terminal output, watch the SQLite study
+database:
 
-At the end, the cell prints a summary block:
-
-```
-XGBoost study complete.
-Best trial: 17
-Best CV Macro F1: 0.9012
-Final model refit on the full cleaned training pool.
-Saved: models/xgb_optuna.joblib
-Saved: models/xgb_optuna.meta.json
-Saved: outputs/02_training/optuna_xgb_trials.csv
-Saved: outputs/02_training/xgb_cv_scores.csv
+```powershell
+Get-ChildItem outputs\02_training\optuna_study_xgb.db |
+    Select-Object LastWriteTime, Length
 ```
 
-The exact numbers will differ. The structure of the output will not.
+The file's modification time advances after each completed trial. A
+stalled study shows no modification for over 90 minutes.
 
 ### 5.3 Expected duration
 
@@ -212,16 +202,12 @@ If the run exceeds 10 hours, something is wrong. See section 7.
 
 ### 5.4 Monitoring during the run
 
-The cell output refreshes as each trial completes. Check in every 30
-to 45 minutes and note three values:
+Because Optuna is at WARNING level, per-trial lines do not appear in
+the terminal. Check the SQLite file every 30 to 45 minutes as shown
+in section 5.2.
 
-- Which trial number is currently running
-- The best score so far
-- Whether the best score is still improving across trials
-
-If the best score has not changed in the last 10 trials, that is
-normal. Optuna's TPE sampler concentrates on promising regions and
-often plateaus near the end. Continue to completion.
+If the file has not been modified for over 90 minutes and CPU usage is
+near zero, the run has stalled. See section 7.1.
 
 ### 5.5 Required Notebook Cell Content
 
@@ -231,23 +217,9 @@ exactly the following code. No additions, no reordering, no changes.
 #### Cell 7 — XGBoost Tuning
 
 ```python
-import json
-import numpy as np
-from src.models import (
-    load_processed_arrays,
-    encode_labels,
-    train_xgb,
-)
-from src.utils import PATHS, RANDOM_STATE, set_seed
-
-set_seed(RANDOM_STATE)
-
-X_train, y_train_str, _, _, class_order = load_processed_arrays()
-y_train = encode_labels(y_train_str, class_order)
-
-assert class_order == ["normal", "dos", "probe", "r2l", "u2r"], (
-    f"Class order mismatch: {class_order}"
-)
+# XGBoost training (Kenneth, Role 4)
+# Contract: docs/contracts/role-4-training-execution-spec.md
+# Estimated wall time: 4 to 6 hours
 
 xgb_result = train_xgb(
     X_train=X_train,
@@ -262,16 +234,16 @@ print("XGBoost CV Macro F1:", xgb_result["cv_mean_macro_f1"])
 #### Cell 8 — XGBoost Save Verification
 
 ```python
-from src.utils import PATHS
+# XGBoost artifact verification (Kenneth, Role 4)
 
-assert (PATHS.models / "xgb_optuna.joblib").is_file(), "Model missing"
-assert (PATHS.models / "xgb_optuna.meta.json").is_file(), "Meta missing"
+assert (PATHS.models / "xgb_optuna.joblib").is_file(), "XGBoost model missing"
+assert (PATHS.models / "xgb_optuna.meta.json").is_file(), "XGBoost meta missing"
 print("XGBoost artifacts verified.")
 ```
 
-Rationale: pinning the cell bodies removes any ambiguity about how the
-arrays are loaded, how the labels are encoded, and how `train_xgb` is
-invoked. If Kenneth or any future executor modifies these cells, the
+Rationale: the arrays `X_train`, `y_train`, and `class_order` are
+provided by shared setup Cells 3 and 4. Cell 7 calls `train_xgb`
+directly. If Kenneth or any future executor modifies these cells, the
 resulting model diverges from the reference and the change must be
 raised as a decision.
 
@@ -283,7 +255,8 @@ raised as a decision.
 
 If the machine sleeps during the run, the process is usually paused
 but not killed. On wake, the run continues from where it left off.
-Verify by checking that Optuna still prints trial summaries.
+Verify by checking that the SQLite study database's modification time
+advances.
 
 If the machine shuts down, the process is killed. On restart:
 
@@ -421,8 +394,8 @@ meta = json.load(open(PATHS.models / 'xgb_optuna.meta.json'))
 print('CV Macro F1 :', meta['cv_mean_macro_f1'])
 print('CV std      :', meta['cv_std_macro_f1'])
 print('Best trial  :', meta['best_trial_number'])
-print('U2R recall  :', meta['per_class_recall_cv']['u2r'])
-print('R2L recall  :', meta['per_class_recall_cv']['r2l'])
+print('U2R recall  :', meta['per_class_recall_train']['u2r'])
+print('R2L recall  :', meta['per_class_recall_train']['r2l'])
 "
 ```
 
@@ -549,7 +522,7 @@ Kenneth runs through this checklist before beginning the training run.
 - [ ] `python src/verify_env.py` prints PASSED
 - [ ] Data integrity check (section 3.2) passes
 - [ ] Notebook 02 opens, path-fix cell runs
-- [ ] Cells 1 through 4 complete without error
+- [ ] Cells 3 and 4 complete without error
 - [ ] Cells 7 and 8 contain exactly the code in section 5.5
 - [ ] Machine has been restarted or RAM freed within the last 6 hours
 - [ ] Sleep and hibernate timers disabled (section 6.1)
@@ -560,3 +533,5 @@ Kenneth runs through this checklist before beginning the training run.
 
 After the checklist passes, Kenneth runs Cell 7 and monitors as
 described in section 5.4.
+
+--END OF DOCUMENT--
