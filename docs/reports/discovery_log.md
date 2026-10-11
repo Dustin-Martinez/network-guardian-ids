@@ -75,7 +75,7 @@ Use `Reported resolved`, `Locally verified`, `Open`, or `Pending evidence` as st
 - **Change:** Converted only the locally generated label arrays to `<U6`. No source notebook, frozen JSON, or model code was changed.
 - **Verification:** Both labels now load without pickle; training labels have 109,188 rows and test labels 36,396 rows. Feature arrays have 43 columns and dtype float64. All four frozen hashes match the setup guide.
 - **Lesson:** A later duplicate export can undo an earlier serialization fix; verify the artifacts after the last cell completes.
-- **Status:** Locally verified artifact correction; source notebook issue remains open for Kit's review. A fresh run of the unchanged notebook reproduces it.
+- **Status:** Resolved upstream and locally verified on 2026-10-12. Kit removed the duplicate cell in commit `46c3401` (merged into main). Reran the fixed notebook top to bottom; labels load with `allow_pickle=False` as `<U6`, shapes match, and all four frozen hashes are OK.
 - **Source:** `notebooks/01_EDA_and_Data_Prep.ipynb`, code cell indices 15-16; `docs/SETUP.md`, Steps 7-9; `docs/reports/role-2-phase-1-markie-documentation-scaffolding.md`, section 6.
 
 ## 3. Reusable entry template

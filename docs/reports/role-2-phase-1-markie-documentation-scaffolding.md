@@ -5,7 +5,7 @@
 **Date:** 2026-10-11 (Asia/Manila)
 **Status:** Phase 1 documentation scaffold complete locally; final empirical content remains pending for later phases.
 **Branch:** `feature/role-2-phase-1-documentation-scaffolding`
-**Current main baseline:** `29d5e24` (initial clone: `c5b40c8`)
+**Current main baseline:** `c1d0ac1` (updated and reverified 2026-10-12; initial clone: `c5b40c8`)
 
 ## 1. Objective and scope
 
@@ -91,7 +91,7 @@ Environment: Windows, Python 3.11.9 in `.venv/Scripts/python.exe`. `src/verify_e
 | feature_names.json | d014bf4733de5e439169d5a5d346be4a0c2bef8080379ef27da6149357f2cef8 | OK |
 | src/models.py | 38c8e622642e2f77cefe9b704639e9c1fb448d46dde2453876175feefbaa4d2d | OK |
 
-Notebook discrepancy: the last duplicate export cell overwrote the Unicode labels with object arrays. Only the locally generated y_train.npy and y_test.npy were converted back to the guide's `<U6` dtype, then loaded successfully with `allow_pickle=False`. The source notebook and model code were preserved. Running the unmodified notebook again will reproduce this label issue. This is documented as DL-006 for the project manager's review.
+Notebook discrepancy: the last duplicate export cell overwrote the Unicode labels with object arrays. Only the locally generated y_train.npy and y_test.npy were converted back to the guide's `<U6` dtype, then loaded successfully with `allow_pickle=False`. The source notebook and model code were preserved. Update on 2026-10-12: Kit removed the duplicate export cell in `46c3401`, now merged into main. The fixed notebook was rerun without local artifact conversion; all shapes, dtypes, and four hashes pass. DL-006 now records the upstream resolution.
 
 The three processed JSON contracts are generated locally; despite the setup guide's tracked-file description, they are absent from Git's tracked inventory at this baseline. Their generated hashes nevertheless match the frozen reference. Logs and the executed notebook copy were retained locally outside the repository in the chat workspace's `work/` directory.
 
@@ -124,3 +124,12 @@ The three processed JSON contracts are generated locally; despite the setup guid
 Local documentation is ready for review. The team can append observed discoveries with the reusable template and prepare video assets against the timing table. No team-channel post, remote push, or merge is recorded as completed.
 
 Next assigned phase: Node.js backend bridge development, governed by `docs/contracts/api_data_contract.md`. Final paper integration later consumes Dwayne's evaluation artifacts. The updated Phase 1 onboarding requirement is complete. Trained models and final evaluation outputs remain later dependencies.
+
+
+## 9. Current handoff readiness (2026-10-12)
+
+Kit's latest main contains the Notebook 01 fix, populated Notebook 02, and revised Kenneth/Dwayne execution contracts. No final model result is inferred from these code changes. Their summary scripts now read `per_class_recall_train`; those values must be labeled training recall, not validation or held-out test recall, in the paper.
+
+A confirmed handoff should identify the member, phase, branch/commit, exact artifact paths, run report, hardware/runtime, and validation status. Markie can draft technical sections from confirmed data-preparation and architecture sources now; model outcomes and final recommendations wait for training and evaluation handoffs.
+
+The GC message requests training-output commits and recommendations, while both execution contracts still state that Kit handles model/artifact commits. Proposed workflow for Kit to approve: commit each member's own reports and generated CSV/JSON/figures on their feature branch; include hardware and software versions plus exact model hashes; arrange model binary delivery separately or explicitly add approved binaries under the team policy. Do not treat partial studies or illustrative UI metrics as final empirical results. No training artifacts were committed by Markie, who did not execute model training.
