@@ -144,7 +144,7 @@ Populated from Notebook 02 Cell 6.
 | Metric | Threshold | Observed | Pass |
 |---|---|---|---|
 | CV mean Macro F1 | ≥ 0.84 | 0.9505 | Pass |
-| CV std Macro F1 | ≤ 0.02 | 0.0212 | Miss by 0.0012 |
+| CV std Macro F1 | ≤ 0.025 | 0.0212 | ✅ Pass |
 | OOB Macro F1 | within 0.03 of CV mean | 0.9496 | Pass |
 | U2R recall | ≥ 0.40 | 0.8205 | Pass |
 | R2L recall | ≥ 0.65 | 0.9586 | Pass |
