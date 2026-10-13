@@ -1,6 +1,4 @@
-# Network Guardian IDS
-
-A Hybrid Machine Learning Approach to Multi Class Network Intrusion Detection
+# Network Guardian IDS — A Hybrid Machine Learning Approach to Multi-Class Network Intrusion Detection
 
 INTRODUCTION TO INTELLIGENT SYSTEMS
 CCINSYSL
@@ -23,7 +21,7 @@ Professor
 
 OCTOBER 2026
 
-## I Introduction
+## I. Introduction
 
 ### 1.1 Background and problem statement
 
@@ -47,13 +45,13 @@ The comparison is designed around one prepared pipeline. It does not isolate the
 
 The prototype comprises a Next.js dashboard, a Node.js Express service, and a Python inference bridge. The bridge applies the saved preprocessing transformations and preserves the feature order expected by the selected model. The interface accepts connection statistics and returns an attack family, a confidence percentage, a threat indicator, and a model identifier. Direct API inference was verified using the trained Random Forest model. Complete dashboard integration has not yet been verified (Network Guardian IDS Team, 2026d, 2026g).
 
-## II Data Understanding and Preparation
+## II. Data Understanding and Preparation
 
-### 2.1 Dataset characteristics
+### 2.1 Data Understanding
 
 The dataset contains 494,021 connection records, 41 predictor variables, and one attack label. Profiling identified no missing values. Protocol type, service, and connection flag are categorical strings, whereas the remaining 38 variables are numerical. The attack manifest defines 22 attack mappings. The normal category is added explicitly, producing 23 observed labels grouped into five classes. These characteristics correspond to the supplied KDD Cup 1999 connection dataset (Network Guardian IDS Team, 2026a).
 
-**Table 1 Class distribution before and after deduplication and in the frozen split**
+**Table 1. Class distribution before and after deduplication and in the frozen split**
 
 | Class | Raw | Prepared | Training | Test |
 | --- | --- | --- | --- | --- |
@@ -66,87 +64,111 @@ The dataset contains 494,021 connection records, 41 predictor variables, and one
 
 Source: Notebook 01 execution and data/processed/split_indices.json. Removing 348,437 repeated feature vectors reduced the dataset by approximately 70.5 percent. U2R retained only 52 records across the prepared dataset. The small support means that a single incorrect U2R prediction can noticeably change the reported test recall.
 
-### 2.2 Feature description
+### 2.2 Feature Description
 
 Basic connection attributes describe traffic volume and status. Content attributes summarize activity within a connection, while time based and host based traffic attributes describe related connections. All 41 fields in Table 2 are candidate inputs before feature removal; label is the target, not a predictor. Numerical ranges are observed minima and maxima in the supplied raw file, not validation limits for future network traffic. Categories number three for protocol_type, 66 for service, and 11 for flag in this local file.
 
-**Table 2 Raw feature dictionary with locally observed values**
+**Table 2. Raw feature dictionary with locally observed values**
 
-| Feature name | Type and range | Description |
-| --- | --- | --- |
-| duration | Numeric; 0 to 58,329 | Connection length in seconds |
-| protocol_type | Category; 3 values | Transport or network protocol |
-| service | Category; 66 values | Destination service category |
-| flag | Category; 11 values | Connection status category |
-| src_bytes | Numeric; 0 to 693,375,640 | Bytes toward destination |
-| dst_bytes | Numeric; 0 to 5,155,468 | Bytes toward source |
-| land | Numeric; 0 to 1 | Same host and port indicator |
-| wrong_fragment | Numeric; 0 to 3 | Invalid fragment count |
-| urgent | Numeric; 0 to 3 | Urgent packet count |
-| hot | Numeric; 0 to 30 | Sensitive activity indicator count |
-| num_failed_logins | Numeric; 0 to 5 | Failed authentication count |
-| logged_in | Numeric; 0 to 1 | Successful authentication indicator |
-| num_compromised | Numeric; 0 to 884 | Compromise indicator count |
-| root_shell | Numeric; 0 to 1 | Root shell indicator |
-| su_attempted | Numeric; 0 to 2 | Superuser command indicator |
-| num_root | Numeric; 0 to 993 | Root access count |
-| num_file_creations | Numeric; 0 to 28 | File creation count |
-| num_shells | Numeric; 0 to 2 | Shell prompt count |
-| num_access_files | Numeric; 0 to 8 | Access control file operation count |
-| num_outbound_cmds | Numeric; 0 to 0 | Outbound FTP command count |
-| is_host_login | Numeric; 0 to 0 | Host login indicator |
-| is_guest_login | Numeric; 0 to 1 | Guest login indicator |
-| count | Numeric; 0 to 511 | Recent same host connections |
-| srv_count | Numeric; 0 to 511 | Recent same service connections |
-| serror_rate | Numeric; 0 to 1 | Same host SYN error fraction |
-| srv_serror_rate | Numeric; 0 to 1 | Same service SYN error fraction |
-| rerror_rate | Numeric; 0 to 1 | Same host rejection fraction |
-| srv_rerror_rate | Numeric; 0 to 1 | Same service rejection fraction |
-| same_srv_rate | Numeric; 0 to 1 | Same host same service fraction |
-| diff_srv_rate | Numeric; 0 to 1 | Same host other service fraction |
-| srv_diff_host_rate | Numeric; 0 to 1 | Same service other host fraction |
-| dst_host_count | Numeric; 0 to 255 | Host window connection count |
-| dst_host_srv_count | Numeric; 0 to 255 | Host window same service count |
-| dst_host_same_srv_rate | Numeric; 0 to 1 | Host window same service fraction |
-| dst_host_diff_srv_rate | Numeric; 0 to 1 | Host window other service fraction |
-| dst_host_same_src_port_rate | Numeric; 0 to 1 | Host window same source port fraction |
-| dst_host_srv_diff_host_rate | Numeric; 0 to 1 | Service window other host fraction |
-| dst_host_serror_rate | Numeric; 0 to 1 | Host window SYN error fraction |
-| dst_host_srv_serror_rate | Numeric; 0 to 1 | Host service SYN error fraction |
-| dst_host_rerror_rate | Numeric; 0 to 1 | Host window rejection fraction |
-| dst_host_srv_rerror_rate | Numeric; 0 to 1 | Host service rejection fraction |
+| Feature name | Type and range | Description | Role |
+| --- | --- | --- | --- |
+| duration | Numeric; 0 to 58,329 | Connection length in seconds | Retained predictor |
+| protocol_type | Category; 3 values | Transport or network protocol | Encoded predictor |
+| service | Category; 66 values | Destination service category | Encoded predictor |
+| flag | Category; 11 values | Connection status category | Encoded predictor |
+| src_bytes | Numeric; 0 to 693,375,640 | Bytes toward destination | Retained predictor |
+| dst_bytes | Numeric; 0 to 5,155,468 | Bytes toward source | Retained predictor |
+| land | Numeric; 0 to 1 | Same host and port indicator | Retained predictor |
+| wrong_fragment | Numeric; 0 to 3 | Invalid fragment count | Retained predictor |
+| urgent | Numeric; 0 to 3 | Urgent packet count | Retained predictor |
+| hot | Numeric; 0 to 30 | Sensitive activity indicator count | Retained predictor |
+| num_failed_logins | Numeric; 0 to 5 | Failed authentication count | Retained predictor |
+| logged_in | Numeric; 0 to 1 | Successful authentication indicator | Retained predictor |
+| num_compromised | Numeric; 0 to 884 | Compromise indicator count | Removed before encoding |
+| root_shell | Numeric; 0 to 1 | Root shell indicator | Retained predictor |
+| su_attempted | Numeric; 0 to 2 | Superuser command indicator | Retained predictor |
+| num_root | Numeric; 0 to 993 | Root access count | Retained predictor |
+| num_file_creations | Numeric; 0 to 28 | File creation count | Retained predictor |
+| num_shells | Numeric; 0 to 2 | Shell prompt count | Retained predictor |
+| num_access_files | Numeric; 0 to 8 | Access control file operation count | Retained predictor |
+| num_outbound_cmds | Numeric; 0 to 0 | Outbound FTP command count | Removed before encoding |
+| is_host_login | Numeric; 0 to 0 | Host login indicator | Removed before encoding |
+| is_guest_login | Numeric; 0 to 1 | Guest login indicator | Retained predictor |
+| count | Numeric; 0 to 511 | Recent same host connections | Retained predictor |
+| srv_count | Numeric; 0 to 511 | Recent same service connections | Retained predictor |
+| serror_rate | Numeric; 0 to 1 | Same host SYN error fraction | Removed before encoding |
+| srv_serror_rate | Numeric; 0 to 1 | Same service SYN error fraction | Removed before encoding |
+| rerror_rate | Numeric; 0 to 1 | Same host rejection fraction | Removed before encoding |
+| srv_rerror_rate | Numeric; 0 to 1 | Same service rejection fraction | Removed before encoding |
+| same_srv_rate | Numeric; 0 to 1 | Same host same service fraction | Retained predictor |
+| diff_srv_rate | Numeric; 0 to 1 | Same host other service fraction | Retained predictor |
+| srv_diff_host_rate | Numeric; 0 to 1 | Same service other host fraction | Retained predictor |
+| dst_host_count | Numeric; 0 to 255 | Host window connection count | Retained predictor |
+| dst_host_srv_count | Numeric; 0 to 255 | Host window same service count | Removed before encoding |
+| dst_host_same_srv_rate | Numeric; 0 to 1 | Host window same service fraction | Retained predictor |
+| dst_host_diff_srv_rate | Numeric; 0 to 1 | Host window other service fraction | Retained predictor |
+| dst_host_same_src_port_rate | Numeric; 0 to 1 | Host window same source port fraction | Retained predictor |
+| dst_host_srv_diff_host_rate | Numeric; 0 to 1 | Service window other host fraction | Retained predictor |
+| dst_host_serror_rate | Numeric; 0 to 1 | Host window SYN error fraction | Removed before encoding |
+| dst_host_srv_serror_rate | Numeric; 0 to 1 | Host service SYN error fraction | Retained predictor |
+| dst_host_rerror_rate | Numeric; 0 to 1 | Host window rejection fraction | Removed before encoding |
+| dst_host_srv_rerror_rate | Numeric; 0 to 1 | Host service rejection fraction | Retained predictor |
 
 Source: data/raw/kddcup.names.txt, local profiling of data/raw/kddcup.csv, and the benchmark feature descriptions. The repository spelling is_host_login is retained. The indicators and counts are stored numerically even where their semantic role is categorical or binary.
 
-### 2.3 Target mapping and duplicate removal
+### 2.3 Data Preparation
+
+#### 2.3.1 Target mapping and duplicate removal
 
 The pipeline parses the raw feature manifest, appends the implicit label column, and maps attack names to their canonical families. Normal is injected into the mapping because it is absent from the attack manifest. Duplicate removal compares the 41 input features rather than the label. When identical feature vectors have different labels, the first record is retained. This policy reduces repeated examples across the subsequent split but also requires scrutiny of any conflicting labels that may be discarded.
 
-### 2.4 Constant and correlated feature removal
+#### 2.3.2 Constant and correlated feature removal
 
 Two constant variables, num_outbound_cmds and is_host_login, were removed. Absolute Pearson correlations were then computed among the numerical variables. For pairs with correlation greater than 0.90, the later variable in the original column order was removed. The excluded correlated variables were dst_host_rerror_rate, dst_host_serror_rate, dst_host_srv_count, num_compromised, rerror_rate, serror_rate, srv_rerror_rate, and srv_serror_rate. The resulting representation contained 28 numerical and three categorical variables before encoding.
 
 Constant detection and correlation pruning preceded the training and test split. These transformations therefore used the complete feature pool, including records subsequently assigned to the test partition. Although target labels were not used for these selection steps, this design limits claims of fully isolated preprocessing. Future experiments should estimate data-dependent feature selection within training folds.
 
-### 2.5 Transformation and encoding
+#### 2.3.3 Transformation and encoding
 
 The duration, src_bytes, and dst_bytes fields receive log(1 + x) transformations to compress large numerical ranges while retaining zero values. Service is frequency encoded using the training partition, with unseen services mapped to zero. Protocol and flag are one hot encoded using training fitted categories; unknown values produce zeros for the corresponding block. The final representation contains 28 numerical features, one service frequency, three protocol indicators, and 11 flag indicators, totaling 43 ordered inputs.
 
-### 2.6 Split and scaling
+#### 2.3.4 Split and scaling
 
 A stratified 75 percent training and 25 percent test split uses random state 42. The resulting arrays contain 109,188 training rows and 36,396 test rows. Features are float64 and labels are fixed width Unicode. A StandardScaler is fit on the training partition and saved for the intended TabNet inference pipeline. The current TabNet training functions receive the loaded engineered arrays without applying that saved scaler. Training and inference transformations must be reconciled before integration. Tree models use the unscaled engineered representation. The saved JSON manifests specify the input order, class order, and frozen split, while saved encoders provide the inference transformation.
 
 The categorical encoders and scaler were fitted to the complete training partition rather than refitted within each cross-validation fold. Validation-fold covariates therefore contributed to preprocessing statistics. The held-out test partition was excluded from their fitting. Cross-validation estimates should be interpreted with this qualification; fold-specific preprocessing would provide a stricter assessment during model selection.
 
-## III Machine Learning Model Development
+## III. Machine Learning Model Development
 
 ### 3.1 Random Forest
 
+#### 3.1.1 Model Description
+
 Random Forest combines decision trees trained with random sampling of records and candidate split features. Aggregation provides a bagging baseline for tabular classification (Breiman, 2001). Bootstrap sampling, out-of-bag estimation, and class weighting are included in the experimental configuration. These mechanisms support comparison without guaranteeing reliable detection of rare attacks.
+
+#### 3.1.2 Model Configuration
+
+**Table 3. Random Forest search space and selected configuration**
+
+| Parameter | Search range | Selected value |
+| --- | --- | --- |
+| n_estimators | 100 to 500 step 50 | 350 |
+| max_depth | 5, 10, 15, 20, 25, 30 or None | 15 |
+| min_samples_split | 2 to 20 | 8 |
+| min_samples_leaf | 1 to 10 | 3 |
+| max_features | sqrt or log2 | sqrt |
+| criterion | gini or entropy | entropy |
+| class_weight | balanced or balanced_subsample | balanced |
 
 Random Forest hyperparameter optimization used 20 configured Optuna trials and five stratified validation folds. The search space comprised 100 to 500 trees in increments of 50, maximum depths from 5 to 30 or unrestricted depth, minimum split sizes from 2 to 20, and minimum leaf sizes from 1 to 10. Other options included square-root or logarithmic feature sampling, Gini or entropy split criteria, and balanced or balanced-subsample class weighting. Random state 42, parallel execution, bootstrap sampling, and out-of-bag estimation were fixed. Tomek Links was applied only to the training subset within each fold (Network Guardian IDS Team, 2026b).
 
 The selected Random Forest configuration used 350 trees, maximum depth 15, entropy, square-root feature sampling, a minimum split size of 8, a minimum leaf size of 3, and balanced class weighting. Trial 17 produced the selected configuration (Network Guardian IDS Team, 2026f).
+
+#### 3.1.3 Training Procedure
+
+Each trial was assessed with five stratified folds. Tomek Links and class weighting were restricted to the fold training subset; validation predictions were used to calculate Macro F1. After selection, the Random Forest was refitted on the cleaned training pool, with the test partition reserved for subsequent evaluation (Network Guardian IDS Team, 2026b, 2026f).
+
+#### 3.1.4 Model Results
 
 The Random Forest training record reports cross-validation Macro F1 of 0.950540, with a standard deviation of 0.021178 across five folds. Out-of-bag Macro F1 was 0.949575. Pooled validation recall was 0.999605 for normal, 0.999805 for DoS, 0.992491 for probe, 0.958611 for R2L, and 0.820513 for U2R. These recalls were reconstructed from validation targets and predictions. They describe performance within the training study and do not constitute held-out test results (Network Guardian IDS Team, 2026f).
 
@@ -156,17 +178,65 @@ Held-out test metrics and execution times are not yet available.
 
 ### 3.2 XGBoost
 
+#### 3.2.1 Model Description
+
 XGBoost is a regularized gradient tree boosting framework that builds an additive ensemble through sequential optimization (Chen & Guestrin, 2016). The implementation assigns class weighted sample weights and evaluates candidate configurations using five fold stratified validation. The search budget is 30 trials and the objective is the mean Macro F1 across validation folds. Validation based early stopping uses a patience of 20 rounds.
 
+#### 3.2.2 Model Configuration
+
+**Table 4. XGBoost hyperparameter search space**
+
+| Parameter | Search range | Selected value |
+| --- | --- | --- |
+| learning_rate | 0.01 to 0.15 logarithmic | Not available |
+| max_depth | 3 to 10 | Not available |
+| min_child_weight | 1 to 20 | Not available |
+| gamma | 0 to 5 | Not available |
+| subsample | 0.6 to 1.0 | Not available |
+| colsample_bytree | 0.5 to 1.0 | Not available |
+| reg_alpha | 0 to 10 | Not available |
+| reg_lambda | 1 to 20 | Not available |
+| max_delta_step | 0 to 5 | Not available |
+| n_estimators | 100 to 300 step 50 | Not available |
+
 The search varies learning rate, tree depth, minimum child weight, split regularization, row and column sampling, L1 and L2 regularization, maximum delta step, and the number of trees. The implemented learning rate range is 0.01 to 0.15 and tree depth ranges from 3 to 10. Candidate ensembles use 100 to 300 trees in steps of 50. After selection, the implementation refits on the cleaned training pool with class weights recalculated after resampling. The final refit does not consult the held out test partition (Network Guardian IDS Team, 2026b).
+
+#### 3.2.3 Training Procedure
+
+The configured study uses 30 Optuna trials and five stratified folds. Weighted fold training uses Tomek Links followed by class weights, and validation-based early stopping has a patience of 20 rounds. The selected configuration is refitted on the cleaned training pool. Actual execution counts and selected parameters require the completed training record; configured budgets are not completed-run measurements (Network Guardian IDS Team, 2026b).
+
+#### 3.2.4 Model Results
 
 Selected XGBoost parameters, validation statistics, execution times, and held-out test metrics are not yet available.
 
 ### 3.3 TabNet
 
+#### 3.3.1 Model Description
+
 TabNet applies sequential attention to feature selection in a neural network for tabular data. Its attention masks offer a model specific view of feature usage (Arik & Pfister, 2019). The project implementation uses CPU execution, an Adam optimizer with learning rate 0.02, at most 30 epochs, and validation based early stopping with patience 10. Architecture tuning includes decision and attention widths, decision steps, attention relaxation, sparsity regularization, transformer sharing, momentum, mask type, and batch sizes.
 
+#### 3.3.2 Model Configuration
+
+**Table 5. TabNet architecture and training search space**
+
+| Parameter | Search range | Selected value |
+| --- | --- | --- |
+| n_d and n_a | Each 8, 16, 24 or 32 | Under verification |
+| n_steps | 3 to 7 | Under verification |
+| gamma | 1.0 to 1.6 | Under verification |
+| lambda_sparse | 0.00001 to 0.005 logarithmic | Under verification |
+| n_independent | 1 to 3 | Under verification |
+| n_shared | 1 to 3 | Under verification |
+| momentum | 0.02 to 0.10 | Under verification |
+| mask_type | sparsemax or entmax | Under verification |
+| batch_size | 512, 1024 or 2048 | Under verification |
+| virtual_batch_size | 128 or 256 | Under verification |
+
+#### 3.3.3 Training Procedure
+
 TabNet uses 20 configured Optuna trials and three stratified validation folds. With 39 U2R training records, three folds place approximately 13 examples in each validation fold, compared with roughly seven or eight under five folds. This increases support per fold but does not establish that the rare class estimate is stable. The different fold counts must remain visible when comparing the algorithms. Tomek Links is restricted to fold training subsets. The final refit includes an internal 10 percent validation subset for early stopping rather than unrestricted training on the entire pool.
+
+#### 3.3.4 Model Results
 
 TabNet training was completed, and model loading was verified. Numerical validation summaries remain under verification because the exported Optuna intermediate values represent cumulative means across completed folds rather than independent fold scores. These cumulative values cannot be used directly to estimate dispersion among folds. Held-out test performance has not yet been established (Network Guardian IDS Team, 2026c).
 
@@ -188,11 +258,11 @@ Functional verification passed 10 Node API tests and three Python bridge tests. 
 
 The inference bridge supports the XGBoost artifact format, although real-model integration has not yet been verified. TabNet inference remains disabled because the specified inference transformation includes scaling whereas the training implementation consumes unscaled engineered arrays. Matching the training and inference representation is a prerequisite for enabling this model. Complete dashboard integration has not yet been verified.
 
-## IV Model Metadata
+## IV. Model Metadata
 
-Table 3 summarizes the experimental configuration. Random Forest selected parameters are described in Section 3.1. Execution times and unavailable performance values remain unreported. Training recall, validation recall, and test recall are treated as distinct quantities.
+Table 6 summarizes the experimental configuration. Random Forest selected parameters are described in Section 3.1. Execution times and unavailable performance values remain unreported. Training recall, validation recall, and test recall are treated as distinct quantities.
 
-**Table 3 Experimental model configuration**
+**Table 6. Experimental model configuration**
 
 | Item | Random Forest | XGBoost | TabNet |
 | --- | --- | --- | --- |
@@ -210,13 +280,13 @@ Table 3 summarizes the experimental configuration. Random Forest selected parame
 
 Sources: model configuration records, prepared-data manifests, and documented execution results (Network Guardian IDS Team, 2026b, 2026c, 2026f). Configured budgets describe the intended study and must not be substituted for the actual completed and pruned trial counts.
 
-## V Model Comparison and Evaluation
+## V. Model Comparison and Evaluation
 
 ### 5.1 Comparative results
 
 Only the available Random Forest validation summary is reported. The complete test comparison remains to be established.
 
-**Table 4 Available validation summary and pending test comparison**
+**Table 7. Available validation summary and pending test comparison**
 
 | Measure | Random Forest | XGBoost | TabNet |
 | --- | --- | --- | --- |
@@ -231,7 +301,7 @@ Only the available Random Forest validation summary is reported. The complete te
 | Training time | Not available | Not available | Not available |
 | Prediction time | Not available | Not available | Not available |
 
-Table 4 separates the available RF validation result from unmeasured test outcomes. Pooled validation recalls appear in Section 3.1. A complete comparison requires verified results for all three models (Network Guardian IDS Team, 2026f).
+Table 7 separates the available RF validation result from unmeasured test outcomes. Pooled validation recalls appear in Section 3.1. A complete comparison requires verified results for all three models (Network Guardian IDS Team, 2026f).
 
 ### 5.2 Error analysis
 
@@ -239,7 +309,15 @@ Error analysis will distinguish missed attacks, false alarms, and confusion betw
 
 Observed error counts and confusion patterns will be reported after completion of held-out evaluation.
 
-### 5.3 Overfitting and generalization
+### 5.3 Overfitting Analysis
+
+**Table 8. Training and validation comparison pending verified measurements**
+
+| Model | Train Macro F1 | Validation Macro F1 | Gap |
+| --- | --- | --- | --- |
+| Random Forest | Not available | 0.950540 | Not available |
+| XGBoost | Not available | Not available | Not available |
+| TabNet | Under verification | Under verification | Under verification |
 
 Training performance, cross validation performance, and test performance measure different conditions. A training to validation gap can indicate optimism but cannot by itself prove severe overfitting. The analysis will consider the final refit procedure, trial selection, fold construction, and the preprocessing limitations identified in Section II. A high training recall for a rare class does not establish that the class generalizes to unseen records.
 
@@ -249,19 +327,19 @@ Complete training, validation, and test comparisons are not yet available.
 
 A final recommendation requires complete held-out evaluation. Model selection will consider validation performance, rare-class detection, runtime, interpretability, and inference requirements. Low class support and unequal validation-fold counts limit comparative conclusions. The test partition will not be used for additional tuning.
 
-## VI Results and Visualizations
+## VI. Results and Visualizations
 
 The available preparation figures summarize class balance and numerical correlation. They document the input data and feature selection context, rather than classifier performance. Final confusion matrices, precision recall curves, and explanation plots will be added after completion of held-out evaluation.
 
 ![Preparation figure 1](../../outputs/01_eda/family_distribution.png)
 
-**Figure 1 Class distribution before and after deduplication**
+**Figure 1. Class distribution before and after deduplication**
 
 Source: outputs/01_eda/family_distribution.png, generated by Notebook 01. Raw DoS frequency is reduced substantially by duplicate removal, while U2R remains rare.
 
 ![Preparation figure 2](../../outputs/01_eda/correlation_heatmap.png)
 
-**Figure 2 Absolute Pearson correlation before correlation pruning**
+**Figure 2. Absolute Pearson correlation before correlation pruning**
 
 Source: outputs/01_eda/correlation_heatmap.png, generated by Notebook 01. Strongly correlated fields motivate removal of later columns under the fixed 0.90 threshold.
 
@@ -271,7 +349,7 @@ Confusion matrices, rare-class precision-recall curves, SHAP plots, and attentio
 
 SHAP attributes a prediction to input features through an additive explanation framework (Lundberg & Lee, 2017). TabNet masks indicate feature selection within its own architecture. These explanations describe model behavior and should not be presented as causal proof that a connection is malicious.
 
-## VII Discovery Log
+## VII. Discovery Log
 
 The development process revealed issues involving dependency compatibility, source-schema interpretation, label serialization, model persistence, and numerical reporting. These observations informed verification procedures and identified limitations relevant to reproducibility. Historical observations are attributed to the project records; locally reproduced checks are distinguished from reported events.
 
@@ -295,7 +373,7 @@ A central methodological lesson was the need to distinguish data-preparation fin
 
 Backend verification identified risks arising from unchecked inputs, dependence on request-key order, and incomplete subprocess error handling. Schema validation, deterministic feature assembly, metadata checks, and consistent failure responses addressed these risks. Thirteen automated functional checks and a real Random Forest API request passed. The unresolved TabNet transformation mismatch remains a deployment limitation (Network Guardian IDS Team, 2026g).
 
-## VIII Executive Summary
+## VIII. Executive Summary
 
 ### What problem did we set out to solve and why does it matter
 
@@ -321,7 +399,7 @@ The historical simulated benchmark, limited rare class support, and preprocessin
 
 A reproduced duplicate export cell reversed the intended label serialization fix. The corrected upstream notebook now passes validation. The team learned to check generated artifacts after the complete workflow; artifact verification was identified as a key methodological lesson.
 
-## IX Reflection
+## IX. Reflection
 
 Individual reflections will address learning about intrusion detection, data preparation, model comparison, encountered challenges, responses to unexpected results, evaluation beyond accuracy, real-world applicability, and possible improvements. Each reflection must represent the corresponding author's own experience.
 
@@ -345,7 +423,7 @@ Individual reflections will address learning about intrusion detection, data pre
 
 [Individual reflection to be provided by the corresponding author.]
 
-## X References
+## X. References
 
 ACM SIGKDD. (n.d.). KDD Cup 1999 computer network intrusion detection. https://www.kdd.org/kdd-cup/view/kdd-cup-1999/Tasks
 
