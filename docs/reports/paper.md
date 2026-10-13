@@ -45,13 +45,13 @@ The comparison is designed around one prepared pipeline. It does not isolate the
 
 ### 1.4 System scope
 
-The prototype combines a Next.js dashboard, a Node.js Express service, and a Python inference bridge. The implemented bridge applies the saved preprocessing artifacts and preserves the feature ordering expected by the selected model. The interface accepts raw connection statistics and returns an attack family, a confidence percentage, a threat indicator, and the model identifier. Frontend scaffolding has been delivered, and the Express to Python inference bridge has been implemented. A real Random Forest API request has been verified using Amber's handed off model. Full dashboard integration remains pending; the frontend still uses its mock switch until Amber completes integration (Network Guardian IDS Team, 2026d, 2026g).
+The prototype comprises a Next.js dashboard, a Node.js Express service, and a Python inference bridge. The bridge applies the saved preprocessing transformations and preserves the feature order expected by the selected model. The interface accepts connection statistics and returns an attack family, a confidence percentage, a threat indicator, and a model identifier. Direct API inference was verified using the trained Random Forest model. Complete dashboard integration has not yet been verified (Network Guardian IDS Team, 2026d, 2026g).
 
 ## II Data Understanding and Preparation
 
 ### 2.1 Dataset characteristics
 
-The repository contains a KDD Cup 1999 style training file with 494,021 records, 41 input features, and one attack label column. Local profiling found no missing cells. Three input fields are categorical strings: protocol_type, service, and flag. The remaining 38 fields are numerical, including counts, indicators, and rates. The local manifest contains 22 attack mappings; normal is added explicitly, producing 23 observed raw labels and five target families. The file is described here by its verified schema and record count rather than the inconsistent KDDTrain+ name used in some earlier reports (Network Guardian IDS Team, 2026a).
+The dataset contains 494,021 connection records, 41 predictor variables, and one attack label. Profiling identified no missing values. Protocol type, service, and connection flag are categorical strings, whereas the remaining 38 variables are numerical. The attack manifest defines 22 attack mappings. The normal category is added explicitly, producing 23 observed labels grouped into five classes. These characteristics correspond to the supplied KDD Cup 1999 connection dataset (Network Guardian IDS Team, 2026a).
 
 **Table 1 Class distribution before and after deduplication and in the frozen split**
 
@@ -124,9 +124,9 @@ The pipeline parses the raw feature manifest, appends the implicit label column,
 
 ### 2.4 Constant and correlated feature removal
 
-The reproduced notebook removes num_outbound_cmds and is_host_login because they are constant in this file. It then computes absolute Pearson correlations among numerical fields, using a threshold greater than 0.90 and retaining the earlier field in column order. The reproduced removal list is dst_host_rerror_rate, dst_host_serror_rate, dst_host_srv_count, num_compromised, rerror_rate, serror_rate, srv_rerror_rate, and srv_serror_rate. This leaves 28 numerical fields and three categorical fields before encoding. These runtime counts take precedence over inconsistent intermediate counts in the earlier preparation report.
+Two constant variables, num_outbound_cmds and is_host_login, were removed. Absolute Pearson correlations were then computed among the numerical variables. For pairs with correlation greater than 0.90, the later variable in the original column order was removed. The excluded correlated variables were dst_host_rerror_rate, dst_host_serror_rate, dst_host_srv_count, num_compromised, rerror_rate, serror_rate, srv_rerror_rate, and srv_serror_rate. The resulting representation contained 28 numerical and three categorical variables before encoding.
 
-Constant detection and correlation pruning are performed before the frozen split in the current notebook. Although these steps do not use the target labels directly, they inspect the entire feature pool, including future test records. The manuscript therefore does not claim that every preprocessing choice was fit exclusively within training folds. Future validation should fit data dependent selection and preprocessing within each training fold to assess the effect of this design limitation.
+Constant detection and correlation pruning preceded the training and test split. These transformations therefore used the complete feature pool, including records subsequently assigned to the test partition. Although target labels were not used for these selection steps, this design limits claims of fully isolated preprocessing. Future experiments should estimate data-dependent feature selection within training folds.
 
 ### 2.5 Transformation and encoding
 
@@ -136,23 +136,23 @@ The duration, src_bytes, and dst_bytes fields receive log(1 + x) transformations
 
 A stratified 75 percent training and 25 percent test split uses random state 42. The resulting arrays contain 109,188 training rows and 36,396 test rows. Features are float64 and labels are fixed width Unicode. A StandardScaler is fit on the training partition and saved for the intended TabNet inference pipeline. The current TabNet training functions receive the loaded engineered arrays without applying that saved scaler. Training and inference transformations must be reconciled before integration. Tree models use the unscaled engineered representation. The saved JSON manifests specify the input order, class order, and frozen split, while saved encoders provide the inference transformation.
 
-The encoders and scaler are trained on the complete training partition rather than being refitted inside each cross validation fold. Consequently, validation fold covariates contribute to these preprocessing statistics. The test partition is excluded from their fitting, but cross validation should be interpreted with this qualification. A future fold fitted pipeline would provide a stricter estimate of generalization during model selection.
+The categorical encoders and scaler were fitted to the complete training partition rather than refitted within each cross-validation fold. Validation-fold covariates therefore contributed to preprocessing statistics. The held-out test partition was excluded from their fitting. Cross-validation estimates should be interpreted with this qualification; fold-specific preprocessing would provide a stricter assessment during model selection.
 
 ## III Machine Learning Model Development
 
 ### 3.1 Random Forest
 
-Random Forest combines decision trees built with randomness in their training samples and split features. Aggregating multiple trees provides a bagging baseline for the project (Breiman, 2001). The project contract uses bootstrap sampling, out of bag diagnostics, and selectable class weighting. These mechanisms support model comparison but do not guarantee reliable detection of extremely rare attacks.
+Random Forest combines decision trees trained with random sampling of records and candidate split features. Aggregation provides a bagging baseline for tabular classification (Breiman, 2001). Bootstrap sampling, out-of-bag estimation, and class weighting are included in the experimental configuration. These mechanisms support comparison without guaranteeing reliable detection of rare attacks.
 
-The contracted search budget is 20 Optuna trials with five stratified folds. The search covers 100 to 500 trees in increments of 50, depths from 5 to 30 or unlimited depth, split sizes from 2 to 20, leaf sizes from 1 to 10, square root or logarithmic feature sampling, Gini or entropy criteria, and balanced or balanced subsample class weights. Random state 42, parallel execution, bootstrap sampling, and out of bag estimation are fixed. Tomek Links is applied only to each fold training subset. This describes the specified search design; the supplied RF execution handoff provides the selected parameters reported below (Network Guardian IDS Team, 2026b).
+Random Forest hyperparameter optimization used 20 configured Optuna trials and five stratified validation folds. The search space comprised 100 to 500 trees in increments of 50, maximum depths from 5 to 30 or unrestricted depth, minimum split sizes from 2 to 20, and minimum leaf sizes from 1 to 10. Other options included square-root or logarithmic feature sampling, Gini or entropy split criteria, and balanced or balanced-subsample class weighting. Random state 42, parallel execution, bootstrap sampling, and out-of-bag estimation were fixed. Tomek Links was applied only to the training subset within each fold (Network Guardian IDS Team, 2026b).
 
-Amber has now uploaded a Random Forest execution handoff and model sidecar on branch role-3-phase-2, commit 3706260, in open PR 13. The selected configuration uses 350 trees, depth 15, entropy, square root feature sampling, minimum split size 8, minimum leaf size 3, and balanced class weights. Trial 17 is the selected trial. These are the supplied run parameters rather than hypothetical settings (Network Guardian IDS Team, 2026f).
+The selected Random Forest configuration used 350 trees, maximum depth 15, entropy, square-root feature sampling, a minimum split size of 8, a minimum leaf size of 3, and balanced class weighting. Trial 17 produced the selected configuration (Network Guardian IDS Team, 2026f).
 
-The sidecar records CV Macro F1 of 0.950540, standard deviation 0.021178 across five actual fold scores, and out of bag Macro F1 of 0.949575. Its pooled validation recalls are 0.999605 for normal, 0.999805 for DoS, 0.992491 for probe, 0.958611 for R2L, and 0.820513 for U2R. The RF branch reconstructs these recalls from saved validation targets and predictions. These values describe the handed off training study; they are not held out test scores or evidence that RF is the best of all three models.
+The Random Forest training record reports cross-validation Macro F1 of 0.950540, with a standard deviation of 0.021178 across five folds. Out-of-bag Macro F1 was 0.949575. Pooled validation recall was 0.999605 for normal, 0.999805 for DoS, 0.992491 for probe, 0.958611 for R2L, and 0.820513 for U2R. These recalls were reconstructed from validation targets and predictions. They describe performance within the training study and do not constitute held-out test results (Network Guardian IDS Team, 2026f).
 
-The reported CV standard deviation exceeds the contractual 0.02 threshold by approximately 0.001178. The report contains both an approval statement and a pending sign-off item, while PR 13 remains open. Acceptance is therefore recorded as awaiting an explicit review decision. The threshold deviation is retained in this manuscript rather than dismissed as rounding noise.
+The Random Forest cross-validation standard deviation exceeded the prespecified 0.02 threshold by approximately 0.001178. This deviation is retained as a limitation of the validation result. It does not establish model instability on its own, but requires consideration alongside fold-level performance and held-out evaluation.
 
-[To be completed after confirmed handoff: RF held out test metrics, measured runtime, and explicit Kit acceptance of the threshold deviation.]
+Held-out test metrics and execution times are not yet available.
 
 ### 3.2 XGBoost
 
@@ -160,7 +160,7 @@ XGBoost is a regularized gradient tree boosting framework that builds an additiv
 
 The search varies learning rate, tree depth, minimum child weight, split regularization, row and column sampling, L1 and L2 regularization, maximum delta step, and the number of trees. The implemented learning rate range is 0.01 to 0.15 and tree depth ranges from 3 to 10. Candidate ensembles use 100 to 300 trees in steps of 50. After selection, the implementation refits on the cleaned training pool with class weights recalculated after resampling. The final refit does not consult the held out test partition (Network Guardian IDS Team, 2026b).
 
-[To be completed after confirmed handoff: XGBoost selected parameters, verified CV summary, runtime, and artifact handoff from Kenneth.]
+Selected XGBoost parameters, validation statistics, execution times, and held-out test metrics are not yet available.
 
 ### 3.3 TabNet
 
@@ -168,9 +168,9 @@ TabNet applies sequential attention to feature selection in a neural network for
 
 TabNet uses 20 configured Optuna trials and three stratified validation folds. With 39 U2R training records, three folds place approximately 13 examples in each validation fold, compared with roughly seven or eight under five folds. This increases support per fold but does not establish that the rare class estimate is stable. The different fold counts must remain visible when comparing the algorithms. Tomek Links is restricted to fold training subsets. The final refit includes an internal 10 percent validation subset for early stopping rather than unrestricted training on the entire pool.
 
-Dwayne has supplied a TabNet execution report, a subsequent verification report, and trial and CV CSV outputs. The handoff records completed training and successful model loading on his machine. Final numerical results are reserved for the evaluation sections after the reported summary, metadata, and exported values are reconciled. In the current code, Optuna intermediate values are running means across completed folds; an export of these intermediate values must not be treated as independent fold scores (Network Guardian IDS Team, 2026c).
+TabNet training was completed, and model loading was verified. Numerical validation summaries remain under verification because the exported Optuna intermediate values represent cumulative means across completed folds rather than independent fold scores. These cumulative values cannot be used directly to estimate dispersion among folds. Held-out test performance has not yet been established (Network Guardian IDS Team, 2026c).
 
-[To be completed after confirmed handoff: Confirmed TabNet summary, selected parameters, corrected interpretation of fold statistics, runtime, and held out test results.]
+TabNet validation statistics are under verification. Execution times and held-out test metrics are not yet available.
 
 ### 3.4 Common training protocol and imbalance handling
 
@@ -186,13 +186,13 @@ Successful requests return a family label, confidence percentage, threat indicat
 
 Functional verification passed 10 Node API tests and three Python bridge tests. A real HTTP inference request using the RF artifact returned a valid response, and reversing the raw JSON key order preserved that response. These checks establish tested interface behavior, not classifier accuracy. No training or test-set evaluation was performed during backend verification (Network Guardian IDS Team, 2026g).
 
-XGBoost support is implemented but its real model validation awaits the owner artifact. TabNet is guarded because the contract requires scaled inference while the existing training code uses unscaled engineered arrays. Kit must confirm the matching training and inference representation before this route is enabled. The backend handoff is published in draft PR 14; dashboard integration and main-branch acceptance remain pending.
+The inference bridge supports the XGBoost artifact format, although real-model integration has not yet been verified. TabNet inference remains disabled because the specified inference transformation includes scaling whereas the training implementation consumes unscaled engineered arrays. Matching the training and inference representation is a prerequisite for enabling this model. Complete dashboard integration has not yet been verified.
 
 ## IV Model Metadata
 
-Table 3 records fixed design information and the current RF handoff status. Selected hyperparameters, actual execution times, and performance values will be taken from confirmed model sidecars and execution reports. Training recall stored under per_class_recall_train must remain distinct from validation recall and test recall.
+Table 3 summarizes the experimental configuration. Random Forest selected parameters are described in Section 3.1. Execution times and unavailable performance values remain unreported. Training recall, validation recall, and test recall are treated as distinct quantities.
 
-**Table 3 Model configuration and evidence readiness**
+**Table 3 Experimental model configuration**
 
 | Item | Random Forest | XGBoost | TabNet |
 | --- | --- | --- | --- |
@@ -203,55 +203,55 @@ Table 3 records fixed design information and the current RF handoff status. Sele
 | Configured trials | 20 | 30 | 20 |
 | Validation folds | 5 | 5 | 3 |
 | Random state | 42 | 42 | 42 |
-| Selected parameters | Trial 17 see 3.1 | Pending handoff | Pending reconciliation |
+| Selected parameters | Trial 17 see 3.1 | Not available | Under verification |
 | Model artifact | rf_baseline.joblib | xgb_optuna.joblib | tabnet_best.zip |
-| Measured runtime | Pending | Pending | Pending |
-| Test metrics | Pending | Pending | Pending |
+| Measured runtime | Not available | Not available | Not available |
+| Test metrics | Not available | Not available | Not available |
 
-Sources: src/models.py, the three model contracts, data/processed manifests, and the Role 5 handoff reports. Configured budgets describe the intended study and must not be substituted for the actual completed and pruned trial counts.
+Sources: model configuration records, prepared-data manifests, and documented execution results (Network Guardian IDS Team, 2026b, 2026c, 2026f). Configured budgets describe the intended study and must not be substituted for the actual completed and pruned trial counts.
 
 ## V Model Comparison and Evaluation
 
 ### 5.1 Comparative results
 
-[To be completed after confirmed handoff: Populate the comparison from outputs/02_training/model_comparison.csv, verified model metadata, and outputs/03_evaluation/per_class_metrics.csv.]
+Only the available Random Forest validation summary is reported. The complete test comparison remains to be established.
 
 **Table 4 Available validation summary and pending test comparison**
 
 | Measure | Random Forest | XGBoost | TabNet |
 | --- | --- | --- | --- |
-| CV Macro F1 and dispersion | 0.950540 and SD 0.021178 | Pending | Pending |
-| Test Macro F1 | Pending | Pending | Pending |
-| Test weighted F1 | Pending | Pending | Pending |
-| Normal recall | Pending | Pending | Pending |
-| DoS recall | Pending | Pending | Pending |
-| Probe recall | Pending | Pending | Pending |
-| R2L recall | Pending | Pending | Pending |
-| U2R recall | Pending | Pending | Pending |
-| Training time | Pending | Pending | Pending |
-| Prediction time | Pending | Pending | Pending |
+| CV Macro F1 and dispersion | 0.950540 and SD 0.021178 | Not available | Not available |
+| Test Macro F1 | Not available | Not available | Not available |
+| Test weighted F1 | Not available | Not available | Not available |
+| Normal recall | Not available | Not available | Not available |
+| DoS recall | Not available | Not available | Not available |
+| Probe recall | Not available | Not available | Not available |
+| R2L recall | Not available | Not available | Not available |
+| U2R recall | Not available | Not available | Not available |
+| Training time | Not available | Not available | Not available |
+| Prediction time | Not available | Not available | Not available |
 
-The RF entry is taken from the training handoff metadata in open PR 13. All recall rows in Table 4 refer to held out test recall and remain pending. RF pooled validation recalls are reported separately in Section 3.1. TabNet summary reconciliation and XGBoost handoff are required before completing a three model comparison (Network Guardian IDS Team, 2026f).
+Table 4 separates the available RF validation result from unmeasured test outcomes. Pooled validation recalls appear in Section 3.1. A complete comparison requires verified results for all three models (Network Guardian IDS Team, 2026f).
 
 ### 5.2 Error analysis
 
-The final error analysis will report which attack families are confused with normal traffic and with one another. A false negative in attack detection represents malicious traffic classified as normal; a false positive represents normal traffic classified as an attack. Errors between two attack families also matter for the multiclass task and should be distinguished from the binary normal versus threat distinction. Counts and class support will accompany rates, particularly for the 13 U2R test examples.
+Error analysis will distinguish missed attacks, false alarms, and confusion between attack families. A false negative occurs when an attack is classified as normal; a false positive occurs when normal traffic is classified as an attack. Rates will be accompanied by counts and class support, particularly for the 13 U2R test examples.
 
-[To be completed after confirmed handoff: Insert observed confusion patterns and the exact corresponding counts from Dwayne's held out evaluation.]
+Observed error counts and confusion patterns will be reported after completion of held-out evaluation.
 
 ### 5.3 Overfitting and generalization
 
 Training performance, cross validation performance, and test performance measure different conditions. A training to validation gap can indicate optimism but cannot by itself prove severe overfitting. The analysis will consider the final refit procedure, trial selection, fold construction, and the preprocessing limitations identified in Section II. A high training recall for a rare class does not establish that the class generalizes to unseen records.
 
-[To be completed after confirmed handoff: Compare separately labeled training, validation, and test measures after the TabNet summary and fold exports are reconciled.]
+Complete training, validation, and test comparisons are not yet available.
 
 ### 5.4 Model recommendation
 
-No final model recommendation is established at this stage. Selection will weigh validation performance, rare class detection, runtime, interpretability, and deployment requirements. Held out test performance will characterize the selected approaches without using that partition for additional tuning. A numerical lead must be interpreted in light of low class support and different validation fold counts.
+A final recommendation requires complete held-out evaluation. Model selection will consider validation performance, rare-class detection, runtime, interpretability, and inference requirements. Low class support and unequal validation-fold counts limit comparative conclusions. The test partition will not be used for additional tuning.
 
 ## VI Results and Visualizations
 
-The available preparation figures summarize class balance and numerical correlation. They document the input data and feature selection context, rather than classifier performance. Final confusion matrices, precision recall curves, and explanation plots will be added when the evaluation handoff is confirmed.
+The available preparation figures summarize class balance and numerical correlation. They document the input data and feature selection context, rather than classifier performance. Final confusion matrices, precision recall curves, and explanation plots will be added after completion of held-out evaluation.
 
 ![Preparation figure 1](../../outputs/01_eda/family_distribution.png)
 
@@ -265,35 +265,35 @@ Source: outputs/01_eda/family_distribution.png, generated by Notebook 01. Raw Do
 
 Source: outputs/01_eda/correlation_heatmap.png, generated by Notebook 01. Strongly correlated fields motivate removal of later columns under the fixed 0.90 threshold.
 
-### 6.1 Pending evaluation and explanation figures
+### 6.1 Evaluation and model explanations
 
-[To be completed after confirmed handoff: Add RF, XGBoost, and TabNet confusion matrices; U2R and R2L precision recall curves; model comparison plot; tree model SHAP summaries and a local explanation; and a TabNet attention mask.]
+Confusion matrices, rare-class precision-recall curves, SHAP plots, and attention visualizations will be presented after the designated evaluation is completed.
 
 SHAP attributes a prediction to input features through an additive explanation framework (Lundberg & Lee, 2017). TabNet masks indicate feature selection within its own architecture. These explanations describe model behavior and should not be presented as causal proof that a connection is malicious.
 
 ## VII Discovery Log
 
-The discovery process combines source attributed development reports with locally reproduced onboarding checks. Earlier events are reported by their original contributors; they are not presented as experiments independently rerun by every member. The log records both successful corrections and unresolved evidence questions.
+The development process revealed issues involving dependency compatibility, source-schema interpretation, label serialization, model persistence, and numerical reporting. These observations informed verification procedures and identified limitations relevant to reproducibility. Historical observations are attributed to the project records; locally reproduced checks are distinguished from reported events.
 
 ### 7.1 Environment and schema issues
 
-Kit's environment report records an installation failure when the pinned package set was attempted on Python 3.13. Recreating the environment on Python 3.11.9 resolved the reported compatibility problem. The preparation report also records an incorrect assumption about the manifest length: the names file has an attack header and 41 feature definitions, while the label column is implicit. Appending the label and explicitly mapping normal traffic corrected the schema and target coverage problems (Network Guardian IDS Team, 2026a).
+The initial environment setup encountered an installation failure when the pinned dependencies were used with Python 3.13. Recreating the environment with Python 3.11.9 resolved the compatibility issue. A separate parsing error arose from assuming that the feature manifest explicitly defined the target column. The manifest contains an attack header and 41 feature definitions; the label column is implicit. Appending the label and including the normal class corrected the schema and target coverage (Network Guardian IDS Team, 2026a).
 
 ### 7.2 Label serialization and onboarding verification
 
-Local onboarding reproduced the prescribed training and test shapes but initially failed when loading labels with allow_pickle=False. A duplicate final export cell overwrote Unicode labels with object arrays. The generated local files were corrected, and Kit subsequently removed the duplicate cell. The fixed notebook was rerun successfully with Unicode labels, expected shapes, and all four frozen input hashes matching the guide. This experience shows why artifact validation must occur after the last export operation.
+The preparation workflow initially generated label arrays that could not be loaded with allow_pickle=False. A duplicate export cell overwrote fixed-width Unicode labels with object arrays. Removing the duplicate cell resolved the serialization error. Re-execution produced the expected shapes and Unicode dtypes, and the four reference hashes matched. The incident demonstrates the importance of verifying artifacts after the complete export sequence.
 
 ### 7.3 TabNet artifact verification
 
-Dwayne reports a duplicate zip extension in the saved TabNet model filename and a verification cell issue involving the project paths. The model file was renamed to the contracted path, and the later verification report records successful model loading. The handoff also distinguishes training recall metadata from the previously expected validation recall field. These are artifact and reporting issues; they do not establish test performance (Network Guardian IDS Team, 2026c).
+Model persistence initially produced a duplicated zip extension for the TabNet artifact. Correcting the filename and path-verification code allowed the saved model to load successfully. Metadata inspection also distinguished training recall from validation recall. Persistence verification establishes that an artifact can be accessed; it does not establish its predictive performance on unseen data (Network Guardian IDS Team, 2026c).
 
 ### 7.4 Lessons and remaining evidence
 
-The documentation process removed unsupported claims about a winning model and failed experiments that lacked execution evidence. Reports, source code, and exported statistics must agree before empirical claims enter the final paper. The RF training handoff is available in open PR 13. Outstanding contributions include its explicit acceptance, the XGBoost execution handoff, reconciliation of TabNet fold reporting, full test evaluation, measured runtimes, and final explanation figures. Each contribution will identify its source artifact and distinguish training, validation, and test measures.
+A central methodological lesson was the need to distinguish data-preparation findings, training diagnostics, validation results, and held-out evaluation. Configuration records and exported statistics must support each empirical claim. The remaining analyses include complete test-set evaluation, reconciliation of TabNet validation reporting, execution-time measurement, and examination of model explanations. A comparative recommendation requires this evidence for all three methods.
 
-### 7.5 Backend verification and handoff
+### 7.5 Backend verification
 
-Backend development replaced unchecked input, request key order based feature assembly, and incomplete subprocess handling with schema validation, saved preprocessing, metadata checks, and consistent failure responses. The 13 automated functional checks and real RF API smoke test passed. The handoff remains a draft pending review, and the TabNet preprocessing discrepancy is recorded for Kit rather than bypassed by changing metadata (Network Guardian IDS Team, 2026g).
+Backend verification identified risks arising from unchecked inputs, dependence on request-key order, and incomplete subprocess error handling. Schema validation, deterministic feature assembly, metadata checks, and consistent failure responses addressed these risks. Thirteen automated functional checks and a real Random Forest API request passed. The unresolved TabNet transformation mismatch remains a deployment limitation (Network Guardian IDS Team, 2026g).
 
 ## VIII Executive Summary
 
@@ -307,7 +307,7 @@ The supplied file has 494,021 rows, substantial duplication, and only 52 U2R rec
 
 ### Which approaches did we compare and how did we judge them
 
-The comparison covers Random Forest, XGBoost, and TabNet. Macro F1 gives each class equal weight; recall, confusion matrices, runtime, and explanations provide further context. RF validation Macro F1 is 0.950540 in its submitted handoff; test performance and the full comparison are pending. Tree models use five folds and TabNet uses three.
+The comparison covers Random Forest, XGBoost, and TabNet. Macro F1 gives each class equal weight; recall, confusion matrices, runtime, and explanations provide further context. RF validation Macro F1 is 0.950540 in the recorded validation study; test performance and the full comparison are pending. Tree models use five folds and TabNet uses three.
 
 ### What do we recommend and what evidence supports it
 
@@ -319,31 +319,31 @@ The historical simulated benchmark, limited rare class support, and preprocessin
 
 ### What was our biggest mistake or surprise and what did we learn from it
 
-A reproduced duplicate export cell reversed the intended label serialization fix. The corrected upstream notebook now passes validation. The team learned to check generated artifacts after the complete workflow; the final largest lesson will incorporate all execution reports.
+A reproduced duplicate export cell reversed the intended label serialization fix. The corrected upstream notebook now passes validation. The team learned to check generated artifacts after the complete workflow; artifact verification was identified as a key methodological lesson.
 
 ## IX Reflection
 
-Each member will provide an individual reflection based on their own contribution and experience. The reflections will address learning about intrusion detection, data preparation, model comparison, encountered challenges, responses to unexpected results, evaluation beyond accuracy, real world applicability, and improvements with additional time.
+Individual reflections will address learning about intrusion detection, data preparation, model comparison, encountered challenges, responses to unexpected results, evaluation beyond accuracy, real-world applicability, and possible improvements. Each reflection must represent the corresponding author's own experience.
 
 ### Kit Dustin
 
-[To be completed after confirmed handoff: Insert Kit Dustin's own reflection after contribution review. Target 400 to 700 words in the final paper.]
+[Individual reflection to be provided by the corresponding author.]
 
 ### Markie
 
-[To be completed after confirmed handoff: Insert Markie's own reflection after contribution review. Target 400 to 700 words in the final paper.]
+[Individual reflection to be provided by the corresponding author.]
 
 ### Amber
 
-[To be completed after confirmed handoff: Insert Amber's own reflection after contribution review. Target 400 to 700 words in the final paper.]
+[Individual reflection to be provided by the corresponding author.]
 
 ### Kenneth
 
-[To be completed after confirmed handoff: Insert Kenneth's own reflection after contribution review. Target 400 to 700 words in the final paper.]
+[Individual reflection to be provided by the corresponding author.]
 
 ### Dwayne
 
-[To be completed after confirmed handoff: Insert Dwayne's own reflection after contribution review. Target 400 to 700 words in the final paper.]
+[Individual reflection to be provided by the corresponding author.]
 
 ## X References
 
@@ -363,18 +363,18 @@ Network Guardian IDS Team. (2026a). Environment and data preparation reports and
 
 Network Guardian IDS Team. (2026b). Model architecture and execution specifications [Project documentation]. src/models.py; docs/contracts/role-3-rf-architecture-spec.md; docs/contracts/role-4-training-execution-spec.md; docs/contracts/role-5-training-execution-spec.md.
 
-Network Guardian IDS Team. (2026c). Role 5 TabNet execution and verification reports [Project documentation]. docs/reports/role-5-phase-2-dwyane-tabnet-execution.md; docs/reports/role-5-tabnet-training-verification-report.md; outputs/02_training/optuna_tabnet_trials.csv; outputs/02_training/tabnet_cv_scores.csv.
+Network Guardian IDS Team. (2026c). TabNet execution and artifact verification [Unpublished research record]. docs/reports/role-5-tabnet-training-verification-report.md; outputs/02_training/optuna_tabnet_trials.csv; outputs/02_training/tabnet_cv_scores.csv.
 
 Network Guardian IDS Team. (2026d). Frontend scaffold and API data contract [Project documentation]. docs/reports/role-3-phase-1-amber-frontend-scaffold.md; docs/contracts/api_data_contract.md.
 
 Network Guardian IDS Team. (2026e). Role 2 documentation and setup verification [Project documentation]. docs/reports/role-2-phase-1-markie-documentation-scaffolding.md; docs/reports/discovery_log.md.
 
-Network Guardian IDS Team. (2026f). Random Forest training handoff and metadata [Project documentation, open PR 13]. Branch role-3-phase-2, commit 3706260; docs/reports/role-3-phase-2-amber-rf-baseline.md; models/rf_baseline.meta.json. https://github.com/Dustin-Martinez/network-guardian-ids/pull/13
+Network Guardian IDS Team. (2026f). Random Forest configuration and validation statistics [Unpublished research record]. models/rf_baseline.meta.json; docs/reports/role-3-phase-2-amber-rf-baseline.md.
 
-Network Guardian IDS Team. (2026g). Backend bridge implementation and verification [Project documentation, draft PR 14]. docs/reports/role-2-phase-2-markie-backend-bridge.md; server/server.js; server/predict_bridge.py; server/validate.js; server/tests. https://github.com/Dustin-Martinez/network-guardian-ids/pull/14
+Network Guardian IDS Team. (2026g). Backend inference implementation and functional verification [Unpublished research record]. docs/reports/role-2-phase-2-markie-backend-bridge.md; server/server.js; server/predict_bridge.py; server/validate.js; server/tests.
 
 UCI KDD Archive. (1999). KDD Cup 1999 data. https://kdd.ics.uci.edu/databases/kddcup99/kddcup99
 
 ### AI Tool Disclosure
 
-OpenAI Codex assisted with repository setup, source review, document drafting, formatting, preparation-artifact verification, and backend implementation and functional testing. AI assistance was used to organize source material and identify reporting inconsistencies; it did not supply missing experimental results. Dwayne's handoff separately discloses ChatGPT assistance in troubleshooting and interpreting errors. The team remains responsible for checking the manuscript, confirming numerical evidence, completing personal reflections, and reconciling the final references before submission.
+OpenAI Codex was used to assist with environment setup, source review, manuscript drafting and formatting, preparation-artifact verification, and backend implementation and functional testing. ChatGPT was also used for troubleshooting and interpretation of execution errors. AI-generated assistance was not used to invent missing measurements or personal reflections. The authors remain responsible for validating the evidence, interpreting the results, and reviewing the final manuscript.
