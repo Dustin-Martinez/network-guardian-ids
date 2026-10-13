@@ -334,16 +334,25 @@ def save_rf(
 # =============================================================================
 
 
-def build_xgb(params: dict) -> xgb.XGBClassifier:
-    """Instantiate an XGBClassifier from a hyperparameter dict."""
+def build_xgb(params: dict, early_stopping: bool = True) -> xgb.XGBClassifier:
+    """Instantiate an XGBClassifier from a hyperparameter dict.
+
+    Args:
+        params: hyperparameters from the search space.
+        early_stopping: if True, sets early_stopping_rounds. Must be True
+            during the CV folds (which pass an eval_set) and False during
+            the final refit (which does not). XGBoost raises ValueError
+            if early_stopping_rounds is set without an eval_set.
+    """
     defaults = {
         "objective": "multi:softprob",
         "eval_metric": "mlogloss",
         "tree_method": "hist",
-        "early_stopping_rounds": XGB_EARLY_STOPPING_ROUNDS,
         "random_state": RANDOM_STATE,
         "n_jobs": -1,
     }
+    if early_stopping:
+        defaults["early_stopping_rounds"] = XGB_EARLY_STOPPING_ROUNDS
     merged = {**defaults, **params}
     return xgb.XGBClassifier(**merged)
 
@@ -453,7 +462,7 @@ def train_xgb(
 
     best_n_estimators = best_params.get("n_estimators", XGB_MAX_ESTIMATORS)
     best_params["n_estimators"] = best_n_estimators
-    final_model = build_xgb(best_params)
+    final_model = build_xgb(best_params, early_stopping=False)
     final_model.fit(X_full, y_full, sample_weight=final_weights, verbose=False)
 
     train_pred = final_model.predict(X_full)

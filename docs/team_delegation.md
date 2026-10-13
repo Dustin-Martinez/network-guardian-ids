@@ -10,10 +10,10 @@ their exact phases, dependencies, and file responsibilities.
 
 | Member | Primary Role | Secondary Role | Operational Mandate |
 |---|---|---|---|
-| Kit Dustin | Project Manager | Data Preparation & Advanced Model Developer | `docs/tasks/1.md` |
+| Kit Dustin | Project Manager | Data Preparation, Advanced Model Developer, XGBoost Executor | `docs/tasks/1.md` |
 | Markie | Paper Lead | Backend Designer | `docs/tasks/2.md` |
 | Amber | Model Developer (Random Forest) | UI/UX Designer | `docs/tasks/3.md` |
-| Kenneth | Execution Lead (XGBoost) | Technical Tester & Video Producer | `docs/tasks/4.md` |
+| Kenneth | Technical Tester | Video Producer | `docs/tasks/4.md` |
 | Dwayne | Evaluation Engineer (TabNet Executor) | Explainability Contributor | `docs/tasks/5.md` |
 
 ---
@@ -23,7 +23,7 @@ their exact phases, dependencies, and file responsibilities.
 | Model | Code Owner | Execution Owner | Estimated Wall Time |
 |---|---|---|---|
 | Random Forest | Amber | Amber | 1.5–3 hours |
-| XGBoost | Kit | Kenneth | 4–6 hours |
+| XGBoost | Kit | Kit (reassigned from Kenneth) | 4–6 hours |
 | TabNet | Kit | Dwayne | 6–8 hours |
 
 Execution on three separate machines. No resource contention.
@@ -35,8 +35,9 @@ Execution on three separate machines. No resource contention.
 | Contract | Owner | Governs |
 |---|---|---|
 | `docs/contracts/api_data_contract.md` | Kit | Client, Express, bridge payloads |
+| `docs/contracts/artifact_transfer_policy.md` | Kit | Model artifact transfer procedure |
 | `docs/contracts/role-3-rf-architecture-spec.md` | Kit | Random Forest implementation for Amber |
-| `docs/contracts/role-4-training-execution-spec.md` | Kit | XGBoost execution for Kenneth |
+| `docs/contracts/role-4-training-execution-spec.md` | Kit | XGBoost execution (executor: Kit) |
 | `docs/contracts/role-5-training-execution-spec.md` | Kit | TabNet execution for Dwayne |
 | `docs/contracts/branch_protection_policy.md` | Kit | Branch naming, PR rules, admin bypass |
 
@@ -55,8 +56,9 @@ Execution on three separate machines. No resource contention.
 
 ### Phase 2 — Execution and Tuning
 
-- **Kenneth** runs the XGBoost training loop (Notebook 02 Cells 7 and 8)
+- **Kit** runs the XGBoost training loop (Notebook 02 Cells 7 and 8)
   following `docs/contracts/role-4-training-execution-spec.md`.
+  Originally assigned to Kenneth (Role 4); reassigned on Day 6.
 - **Dwayne** runs the TabNet training loop (Notebook 02 Cells 9 and 10)
   following `docs/contracts/role-5-training-execution-spec.md`.
 - **Amber** runs the Random Forest training loop (Notebook 02 Cells 5
