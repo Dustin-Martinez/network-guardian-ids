@@ -257,22 +257,90 @@ def _safe_cv_std(study: optuna.Study) -> float:
 # Random Forest (Role 3 - Amber)
 # =============================================================================
 # Implementation contract: docs/contracts/role-3-rf-architecture-spec.md
+#
+# Ownership boundary (contract section 2):
+#   - This section implements build_rf, rf_objective, train_rf, save_rf.
+#   - Three private helpers support this section and are not part of the
+#     shared interface: _suggest_rf_params, _compute_oob_macro_f1,
+#     _collect_best_trial_validation.
+#   - Shared helpers (clean_training_fold, compute_class_weights,
+#     macro_f1, load_processed_arrays, encode_labels, _safe_cv_std) are
+#     owned by Kit and are consumed, not modified.
+#   - No XGBoost, TabNet, or bridge code is touched by this section.
 # =============================================================================
 
 
 def build_rf(params: dict) -> RandomForestClassifier:
     """Instantiate a RandomForestClassifier from a hyperparameter dict.
 
-    See docs/contracts/role-3-rf-architecture-spec.md section 3 for the
-    search space and section 2.1 for the full contract.
+    Contract: docs/contracts/role-3-rf-architecture-spec.md section 3.1.
 
-    Raises:
-        NotImplementedError: until Role 3 implements this function.
+    Parameters supplied in ``params`` are filtered against the search-space
+    keys defined in section 4. Any key outside that set is dropped, and the
+    five fixed parameters in section 5 are always forced. This guarantees
+    that a caller cannot silently override reproducibility or OOB settings.
     """
-    raise NotImplementedError(
-        "build_rf is owned by Role 3 (Amber). "
-        "See docs/contracts/role-3-rf-architecture-spec.md."
+    allowed = {
+        "n_estimators",
+        "max_depth",
+        "min_samples_split",
+        "min_samples_leaf",
+        "max_features",
+        "criterion",
+        "class_weight",
+    }
+    filtered = {k: v for k, v in params.items() if k in allowed}
+
+    defaults = {
+        "n_estimators": 100,
+        "max_depth": None,
+        "min_samples_split": 2,
+        "min_samples_leaf": 1,
+        "max_features": "sqrt",
+        "criterion": "gini",
+        "class_weight": "balanced",
+    }
+    merged = {**defaults, **filtered}
+
+    return RandomForestClassifier(
+        n_estimators=int(merged["n_estimators"]),
+        max_depth=merged["max_depth"],
+        min_samples_split=int(merged["min_samples_split"]),
+        min_samples_leaf=int(merged["min_samples_leaf"]),
+        max_features=str(merged["max_features"]),
+        criterion=str(merged["criterion"]),
+        class_weight=str(merged["class_weight"]),
+        random_state=RANDOM_STATE,
+        n_jobs=-1,
+        oob_score=True,
+        warm_start=False,
+        bootstrap=True,
     )
+
+
+def _suggest_rf_params(trial: optuna.Trial) -> dict:
+    """Sample hyperparameters from the RF search space.
+
+    Mirrors docs/contracts/role-3-rf-architecture-spec.md section 4 exactly.
+    Do not widen or narrow these ranges without Kit's sign-off (section 15).
+    """
+    return {
+        "n_estimators": trial.suggest_int("n_estimators", 100, 500, step=50),
+        "max_depth": trial.suggest_categorical(
+            "max_depth", [5, 10, 15, 20, 25, 30, None]
+        ),
+        "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
+        "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
+        "max_features": trial.suggest_categorical(
+            "max_features", ["sqrt", "log2"]
+        ),
+        "criterion": trial.suggest_categorical(
+            "criterion", ["gini", "entropy"]
+        ),
+        "class_weight": trial.suggest_categorical(
+            "class_weight", ["balanced", "balanced_subsample"]
+        ),
+    }
 
 
 def rf_objective(
@@ -284,16 +352,146 @@ def rf_objective(
 ) -> float:
     """Optuna objective for Random Forest.
 
-    Must perform StratifiedKFold CV with in-fold Tomek Links and return
-    the mean Macro F1 across folds. See section 5 of the RF contract.
+    Contract: docs/contracts/role-3-rf-architecture-spec.md sections 3.2, 7.
+
+    Runs StratifiedKFold cross-validation with in-fold Tomek Links boundary
+    clearing and returns the mean Macro F1 across folds.
+
+    In addition to the scalar score, this objective persists each fold's
+    validation targets and predictions on the trial via ``set_user_attr``.
+    That persistence lets ``train_rf`` reconstruct per-class recall without
+    refitting any model after the study completes. The persisted arrays are
+    small (a fold's worth of integer labels) and are read back only from the
+    best trial.
+
+    Anti-leakage rules enforced by this function (section 7):
+        Rule 1: X_fold_val is never passed to clean_training_fold.
+        Rule 2: X_test and y_test are never accepted as parameters.
+    """
+    params = _suggest_rf_params(trial)
+
+    cv = StratifiedKFold(
+        n_splits=n_folds, shuffle=True, random_state=random_state
+    )
+
+    fold_scores: list[float] = []
+    for fold_idx, (train_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
+        X_fold_train = X_train[train_idx]
+        y_fold_train = y_train[train_idx]
+        X_fold_val = X_train[val_idx]
+        y_fold_val = y_train[val_idx]
+
+        # Rule 1: Tomek Links touches the training portion only.
+        X_fold_train, y_fold_train = clean_training_fold(
+            X_fold_train, y_fold_train
+        )
+
+        model = build_rf(params)
+        # class_weight handles imbalance; do not also pass sample_weight.
+        model.fit(X_fold_train, y_fold_train)
+
+        y_pred = model.predict(X_fold_val)
+        fold_score = macro_f1(y_fold_val, y_pred)
+        fold_scores.append(float(fold_score))
+
+        # Persist fold-level arrays for downstream meta construction. Stored
+        # as plain lists so Optuna's JSON-backed storage round-trips cleanly.
+        trial.set_user_attr(f"val_true_fold_{fold_idx}", y_fold_val.tolist())
+        trial.set_user_attr(f"val_pred_fold_{fold_idx}", y_pred.tolist())
+
+        trial.report(float(np.mean(fold_scores)), fold_idx)
+        if trial.should_prune():
+            raise optuna.TrialPruned()
+
+    return float(np.mean(fold_scores))
+
+
+def _collect_best_trial_validation(
+    trial: optuna.Trial,
+    n_folds: int,
+    class_order: list[str],
+) -> tuple[dict[str, float], list[float]]:
+    """Reconstruct per-class recall and per-fold scores from a completed trial.
+
+    Reads the arrays persisted by ``rf_objective`` via ``set_user_attr`` and
+    aggregates them into a single confusion matrix across all folds.
+
+    Returns:
+        (per_class_recall, fold_scores)
+        per_class_recall : {class_name: recall}
+        fold_scores      : per-fold Macro F1, ordered by fold index
 
     Raises:
-        NotImplementedError: until Role 3 implements this function.
+        RuntimeError: if the trial is missing persisted fold arrays. This
+        indicates the trial was pruned before completion and is not the
+        best trial. ``train_rf`` only calls this on ``study.best_trial``.
     """
-    raise NotImplementedError(
-        "rf_objective is owned by Role 3 (Amber). "
-        "See docs/contracts/role-3-rf-architecture-spec.md."
-    )
+    n_classes = len(class_order)
+    confusion = np.zeros((n_classes, n_classes), dtype=np.int64)
+    fold_scores: list[float] = []
+
+    for fold_idx in range(n_folds):
+        true_key = f"val_true_fold_{fold_idx}"
+        pred_key = f"val_pred_fold_{fold_idx}"
+        if true_key not in trial.user_attrs or pred_key not in trial.user_attrs:
+            raise RuntimeError(
+                f"Best trial {trial.number} is missing persisted validation "
+                f"arrays for fold {fold_idx}. A completed trial must expose "
+                f"all {n_folds} folds."
+            )
+        y_true_fold = np.asarray(trial.user_attrs[true_key], dtype=np.int64)
+        y_pred_fold = np.asarray(trial.user_attrs[pred_key], dtype=np.int64)
+
+        for t, p in zip(y_true_fold, y_pred_fold):
+            confusion[int(t), int(p)] += 1
+
+        fold_scores.append(macro_f1(y_true_fold, y_pred_fold))
+
+    per_class_recall: dict[str, float] = {}
+    for i, name in enumerate(class_order):
+        row_sum = int(confusion[i].sum())
+        per_class_recall[name] = (
+            float(confusion[i, i] / row_sum) if row_sum > 0 else 0.0
+        )
+    return per_class_recall, fold_scores
+
+
+def _compute_oob_macro_f1(
+    model: RandomForestClassifier, y_full: np.ndarray
+) -> float:
+    """Compute Macro F1 from out-of-bag predictions.
+
+    Contract: section 8 step 5. Rows that were never out-of-bag appear as
+    NaN rows in ``oob_decision_function_`` and are excluded from the score.
+
+    Raises:
+        RuntimeError: if the model has no OOB decision function (oob_score
+        was disabled) or if no rows are scorable.
+    """
+    if not hasattr(model, "oob_decision_function_") or \
+            model.oob_decision_function_ is None:
+        raise RuntimeError(
+            "Model has no oob_decision_function_. build_rf must keep "
+            "oob_score=True (contract section 5)."
+        )
+
+    oob_proba = np.asarray(model.oob_decision_function_)
+    if oob_proba.ndim != 2 or oob_proba.shape[0] != len(y_full):
+        raise RuntimeError(
+            f"oob_decision_function_ shape {oob_proba.shape} does not match "
+            f"y_full length {len(y_full)}."
+        )
+
+    valid_mask = ~np.isnan(oob_proba).any(axis=1)
+    if not valid_mask.any():
+        raise RuntimeError(
+            "No scorable out-of-bag rows. Increase n_estimators or check "
+            "that bootstrap=True."
+        )
+
+    oob_pred = np.argmax(oob_proba[valid_mask], axis=1)
+    y_valid = y_full[valid_mask]
+    return macro_f1(y_valid, oob_pred)
 
 
 def train_rf(
@@ -306,27 +504,157 @@ def train_rf(
 ) -> dict:
     """Full Optuna study, final refit, and persistence for Random Forest.
 
-    Raises:
-        NotImplementedError: until Role 3 implements this function.
+    Contract: docs/contracts/role-3-rf-architecture-spec.md sections 3.3,
+    6, 7, 8, 9, 10.
+
+    Order of operations:
+        1. Create or load the Optuna study (section 6).
+        2. Optimize with rf_objective over n_trials.
+        3. Read per-class recall and fold scores from the best trial's
+           persisted validation arrays (section 9).
+        4. Refit the best parameters once on the full cleaned training pool.
+        5. Extract OOB Macro F1 from the refitted model.
+        6. Call save_rf with the fitted model and the section-9 meta dict.
+        7. Write the trial log and per-fold metrics (section 10).
+
+    Returns:
+        dict with keys: model, study, best_params, cv_mean_macro_f1,
+        cv_std_macro_f1, fold_scores, artifacts.
     """
-    raise NotImplementedError(
-        "train_rf is owned by Role 3 (Amber). "
-        "See docs/contracts/role-3-rf-architecture-spec.md."
+    set_seed(RANDOM_STATE)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    study = optuna.create_study(
+        study_name="ng_ids_random_forest",
+        direction="maximize",
+        sampler=optuna.samplers.TPESampler(seed=RANDOM_STATE),
+        pruner=optuna.pruners.MedianPruner(
+            n_startup_trials=5, n_warmup_steps=2
+        ),
+        storage=f"sqlite:///{output_dir / 'optuna_study_rf.db'}",
+        load_if_exists=True,
     )
+    study.optimize(
+        lambda t: rf_objective(t, X_train, y_train, n_folds, RANDOM_STATE),
+        n_trials=n_trials,
+        show_progress_bar=False,
+    )
+
+    best_params = dict(study.best_params)
+    best_trial = study.best_trial
+
+    # Step 3: reconstruct per-class recall and per-fold scores from the
+    # persisted validation arrays. No refitting happens here.
+    per_class_recall_cv, fold_scores = _collect_best_trial_validation(
+        trial=best_trial,
+        n_folds=n_folds,
+        class_order=class_order,
+    )
+
+    # Section 8 step 2: a single Tomek Links pass on the full training pool.
+    X_full, y_full = clean_training_fold(X_train, y_train)
+
+    # Section 8 steps 3 and 4: instantiate and fit once on the cleaned pool.
+    final_model = build_rf(best_params)
+    final_model.fit(X_full, y_full)
+
+    # Section 8 step 5: OOB Macro F1.
+    oob_macro_f1 = _compute_oob_macro_f1(final_model, y_full)
+
+    feature_names = json.load(open(PATHS.processed / "feature_names.json"))
+
+    meta = {
+        "model": "random_forest",
+        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "optuna_trials": int(n_trials),
+        "cv_folds": int(n_folds),
+        "best_trial_number": int(best_trial.number),
+        "best_params": {
+            "n_estimators": int(best_params["n_estimators"]),
+            "max_depth": (
+                None if best_params["max_depth"] is None
+                else int(best_params["max_depth"])
+            ),
+            "min_samples_split": int(best_params["min_samples_split"]),
+            "min_samples_leaf": int(best_params["min_samples_leaf"]),
+            "max_features": str(best_params["max_features"]),
+            "criterion": str(best_params["criterion"]),
+            "class_weight": str(best_params["class_weight"]),
+        },
+        "cv_mean_macro_f1": float(study.best_value),
+        "cv_std_macro_f1": float(np.std(fold_scores)),
+        "oob_macro_f1": float(oob_macro_f1),
+        "fold_scores": [float(s) for s in fold_scores],
+        "per_class_recall_cv": per_class_recall_cv,
+        "feature_names": feature_names,
+        "class_order": list(class_order),
+        "n_train": int(len(X_train)),
+        "n_features": int(X_train.shape[1]),
+        "random_state": int(RANDOM_STATE),
+        "notes": (
+            "Final model refit on the full cleaned training pool after one "
+            "Tomek Links pass. per_class_recall_cv and fold_scores are "
+            "reconstructed from the best trial's persisted validation arrays "
+            "(set_user_attr in rf_objective); no models are refit for the "
+            "meta sidecar. cv_std_macro_f1 is the standard deviation across "
+            "the best trial's fold scores."
+        ),
+    }
+
+    artifacts = save_rf(final_model, meta)
+
+    trials_df = study.trials_dataframe()
+    trial_csv = output_dir / "optuna_rf_trials.csv"
+    trials_df.to_csv(trial_csv, index=False)
+    artifacts["trial_csv"] = trial_csv
+
+    fold_csv = output_dir / "rf_cv_scores.csv"
+    pd.DataFrame(
+        [{"fold": int(i), "macro_f1": float(s)} for i, s in enumerate(fold_scores)]
+    ).to_csv(fold_csv, index=False)
+    artifacts["fold_csv"] = fold_csv
+
+    artifacts["study_db"] = output_dir / "optuna_study_rf.db"
+
+    return {
+        "model": final_model,
+        "study": study,
+        "best_params": best_params,
+        "cv_mean_macro_f1": float(study.best_value),
+        "cv_std_macro_f1": meta["cv_std_macro_f1"],
+        "fold_scores": [float(s) for s in fold_scores],
+        "artifacts": artifacts,
+    }
 
 
 def save_rf(
-    model: RandomForestClassifier, meta: dict, model_dir: Path = PATHS.models
+    model: RandomForestClassifier,
+    meta: dict,
+    model_dir: Path = PATHS.models,
 ) -> dict[str, Path]:
     """Persist the RF model and its meta sidecar.
 
-    Raises:
-        NotImplementedError: until Role 3 implements this function.
+    Contract: docs/contracts/role-3-rf-architecture-spec.md section 3.4.
+
+    Writes:
+        models/rf_baseline.joblib
+        models/rf_baseline.meta.json
+
+    Returns:
+        {"model": Path, "meta": Path}
     """
-    raise NotImplementedError(
-        "save_rf is owned by Role 3 (Amber). "
-        "See docs/contracts/role-3-rf-architecture-spec.md."
-    )
+    model_dir = Path(model_dir)
+    model_dir.mkdir(parents=True, exist_ok=True)
+    model_path = model_dir / "rf_baseline.joblib"
+    meta_path = model_dir / "rf_baseline.meta.json"
+
+    joblib.dump(model, model_path)
+    with meta_path.open("w", encoding="utf-8") as fh:
+        json.dump(meta, fh, indent=2, sort_keys=True)
+        fh.write("\n")
+
+    return {"model": model_path, "meta": meta_path} 
 
 
 # =============================================================================

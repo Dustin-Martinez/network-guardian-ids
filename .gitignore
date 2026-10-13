@@ -2,13 +2,16 @@
 # Network Guardian IDS - .gitignore
 # ============================================================
 # Policy:
-#   - models/         : ignored (regenerable via Notebook 02)
-#   - outputs/        : committed (graded deliverables)
-#   - data/raw/       : committed (dataset + manifests)
-#   - data/processed/ : ignored except frozen contract files
+#   - models/*.joblib, *.zip, *.pt : ignored (regenerable, large)
+#   - models/*.meta.json           : TRACKED (comparison source, evidence)
+#   - outputs/                     : committed (graded deliverables)
+#   - data/raw/                    : committed (dataset + manifests)
+#   - data/processed/              : ignored except frozen contract files
 #
-# At final submission, freeze trained models with:
-#   git add -f models/*.joblib models/*.pt
+# The meta sidecars (models/*.meta.json) carry every metric the
+# comparison and evaluation notebooks need. They are small JSON files
+# and are tracked. The binaries are not tracked and are not required
+# for the comparison table or Notebook 03.
 # ============================================================
 
 
@@ -115,6 +118,7 @@ models/*.pt
 models/*.pth
 models/*.onnx
 models/*.h5
+models/*.zip
 
 
 # ------------------------------------------------------------

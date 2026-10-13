@@ -82,7 +82,7 @@ export const MODELS = [
    PHASE 3: set USE_MOCK to false once Markie's server is running on port 5000.
    ============================================================ */
 const API_URL = "http://localhost:5000/api/analyze";
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 function mockPredict(p: NetworkPacketRequest): Pick<PredictionResponse, "prediction" | "confidence"> {
   if (p.flag === "S0" && p.count >= 200) return { prediction: "dos", confidence: 98.4 };
