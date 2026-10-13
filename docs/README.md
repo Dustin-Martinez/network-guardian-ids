@@ -333,6 +333,58 @@ Reports are non-negotiable outputs of every phase. Add them as the phase
 completes. No PR required for report content, but reports must reference
 the contracts and mandates they implement.
 
+### 8.4 Model Artifact Policy
+
+Trained model binaries are not committed to git. They are large,
+opaque, and regenerable from `src/models.py` and the frozen data
+contracts. The evidence for every number in the paper lives in the
+meta sidecars, which are small JSON files and are tracked.
+
+**Tracked per model:**
+
+| File | Purpose |
+|---|---|
+| `models/rf_baseline.meta.json` | Random Forest provenance and metrics |
+| `models/xgb_optuna.meta.json` | XGBoost provenance and metrics |
+| `models/tabnet_best.meta.json` | TabNet provenance and metrics |
+| `outputs/02_training/optuna_*_trials.csv` | Optuna trial history |
+| `outputs/02_training/*_cv_scores.csv` | Per-fold Macro F1 |
+
+**Not tracked per model:**
+
+| File | Reason |
+|---|---|
+| `models/rf_baseline.joblib` | 10-50 MB, regenerable |
+| `models/xgb_optuna.joblib` | 30-80 MB, regenerable |
+| `models/tabnet_best.zip` | 5-20 MB, regenerable |
+
+**Transfer procedure for a training-run contributor:**
+
+1. Confirm the meta sidecar and the two CSVs exist locally.
+2. Create an artifact branch: `git checkout -b artifacts/<role>-<model>-<YYYYMMDD>`
+3. Stage exactly three files:
+   - `models/<model>_baseline.meta.json` (or equivalent)
+   - `outputs/02_training/optuna_<model>_trials.csv`
+   - `outputs/02_training/<model>_cv_scores.csv`
+4. Commit and push the branch.
+5. Post the branch name in the team channel.
+6. Kit merges the branch.
+
+**If a binary is required for local evaluation:**
+
+The binary is transferred out-of-band via a shared drive. It is never
+committed. Notebook 03 can read the meta sidecars to produce confusion
+matrices and per-class metrics without the binary; if the binary is
+needed for a specific downstream task, Kit coordinates the transfer.
+
+**Force-add exceptions:**
+
+No force-adds are required for the standard workflow. The only case
+where `git add -f` might be used is if the grader explicitly requires
+the trained binaries to be present in the repository at submission
+time. In that case, the binaries are force-added in a single final
+commit, and this section is updated to reflect the exception.
+
 ---
 
 ## 9. Quick Decision Flowchart
