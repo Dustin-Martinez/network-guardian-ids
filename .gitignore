@@ -179,3 +179,4 @@ $RECYCLE.BIN/
 *~
 *.sublime-workspace
 *.sublime-project
+outputs/02_training/*.db
