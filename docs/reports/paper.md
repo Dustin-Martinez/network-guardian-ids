@@ -43,7 +43,7 @@ The comparison is designed around one prepared pipeline. It does not isolate the
 
 ### 1.4 System scope
 
-The prototype comprises a Next.js dashboard, a Node.js Express service, and a Python inference bridge. The bridge applies the saved preprocessing transformations and preserves the feature order expected by the selected model. The interface accepts connection statistics and returns an attack family, a confidence percentage, a threat indicator, and a model identifier. Direct API inference was verified using the trained Random Forest model. Complete dashboard integration has not yet been verified (Network Guardian IDS Team, 2026d, 2026g).
+The prototype comprises a Next.js dashboard, a Node.js Express service, and a Python inference bridge. The bridge preserves the frozen 43-feature order and returns an attack family, confidence percentage, threat indicator, and model identifier. The frontend mock switch was disabled, enabling the dashboard to send raw connection fields to the live API endpoint. The independently reproduced backend smoke test used RF. Complete cross-model deployment verification remains separate from the test-set evaluation (Network Guardian IDS Team, 2026d, 2026g, 2026k).
 
 ## II. Data Understanding and Preparation
 
@@ -134,7 +134,7 @@ The duration, src_bytes, and dst_bytes fields receive log(1 + x) transformations
 
 #### 2.3.4 Split and scaling
 
-A stratified 75 percent training and 25 percent test split uses random state 42. The resulting arrays contain 109,188 training rows and 36,396 test rows. Features are float64 and labels are fixed width Unicode. A StandardScaler is fit on the training partition and saved for the intended TabNet inference pipeline. The current TabNet training functions receive the loaded engineered arrays without applying that saved scaler. Training and inference transformations must be reconciled before integration. Tree models use the unscaled engineered representation. The saved JSON manifests specify the input order, class order, and frozen split, while saved encoders provide the inference transformation.
+A stratified 75 percent training and 25 percent test split uses random state 42. The resulting arrays contain 109,188 training rows and 36,396 test rows. Features are float64 and labels are fixed width Unicode. A StandardScaler is fit on the training partition and saved, but the TabNet training functions do not apply it. The updated inference bridge passes raw engineered features to TabNet to match its training representation; a real TabNet API request remains unverified. Tree models also use the unscaled engineered representation. The saved JSON manifests specify the input order, class order, and frozen split, while saved encoders provide the inference transformation.
 
 The categorical encoders and scaler were fitted to the complete training partition rather than refitted within each cross-validation fold. Validation-fold covariates therefore contributed to preprocessing statistics. The held-out test partition was excluded from their fitting. Cross-validation estimates should be interpreted with this qualification; fold-specific preprocessing would provide a stricter assessment during model selection.
 
@@ -170,11 +170,9 @@ Each trial was assessed with five stratified folds. Tomek Links and class weight
 
 #### 3.1.4 Model Results
 
-The Random Forest training record reports cross-validation Macro F1 of 0.950540, with a standard deviation of 0.021178 across five folds. Out-of-bag Macro F1 was 0.949575. Pooled validation recall was 0.999605 for normal, 0.999805 for DoS, 0.992491 for probe, 0.958611 for R2L, and 0.820513 for U2R. These recalls were reconstructed from validation targets and predictions. They describe performance within the training study and do not constitute held-out test results (Network Guardian IDS Team, 2026f).
+The RF study reports CV Macro F1 of 0.950540 and independently reconstructed fold SD of 0.021178, with OOB Macro F1 of 0.949575. Pooled validation U2R recall was 0.820513. The original RF SD threshold of 0.02 was revised to 0.025 through a documented post-run decision; the observed SD satisfies the revised threshold. This adjustment is disclosed rather than treated as a prespecified criterion.
 
-The Random Forest cross-validation standard deviation exceeded the prespecified 0.02 threshold by approximately 0.001178. This deviation is retained as a limitation of the validation result. It does not establish model instability on its own, but requires consideration alongside fold-level performance and held-out evaluation.
-
-Held-out test metrics and execution times are not yet available.
+RF held-out test Macro F1 was 0.933095, weighted F1 0.998905, R2L recall 0.952000, and U2R recall 0.769231. Recorded full-test prediction time was 0.151 seconds. Validation and test recall remain distinct quantities (Network Guardian IDS Team, 2026f, 2026h, 2026j).
 
 ### 3.2 XGBoost
 
@@ -188,26 +186,26 @@ XGBoost is a regularized gradient tree boosting framework that builds an additiv
 
 | Parameter | Search range | Selected value |
 | --- | --- | --- |
-| learning_rate | 0.01 to 0.15 logarithmic | Not available |
-| max_depth | 3 to 10 | Not available |
-| min_child_weight | 1 to 20 | Not available |
-| gamma | 0 to 5 | Not available |
-| subsample | 0.6 to 1.0 | Not available |
-| colsample_bytree | 0.5 to 1.0 | Not available |
-| reg_alpha | 0 to 10 | Not available |
-| reg_lambda | 1 to 20 | Not available |
-| max_delta_step | 0 to 5 | Not available |
-| n_estimators | 100 to 300 step 50 | Not available |
+| learning_rate | 0.01 to 0.15 logarithmic | 0.043473 |
+| max_depth | 3 to 10 | 10 |
+| min_child_weight | 1 to 20 | 2 |
+| gamma | 0 to 5 | 0.00947773 |
+| subsample | 0.6 to 1.0 | 0.80875 |
+| colsample_bytree | 0.5 to 1.0 | 0.788443 |
+| reg_alpha | 0 to 10 | 0.633807 |
+| reg_lambda | 1 to 20 | 7.2469 |
+| max_delta_step | 0 to 5 | 4 |
+| n_estimators | 100 to 300 step 50 | 250 |
 
 The search varies learning rate, tree depth, minimum child weight, split regularization, row and column sampling, L1 and L2 regularization, maximum delta step, and the number of trees. The implemented learning rate range is 0.01 to 0.15 and tree depth ranges from 3 to 10. Candidate ensembles use 100 to 300 trees in steps of 50. After selection, the implementation refits on the cleaned training pool with class weights recalculated after resampling. The final refit does not consult the held out test partition (Network Guardian IDS Team, 2026b).
 
 #### 3.2.3 Training Procedure
 
-The configured study uses 30 Optuna trials and five stratified folds. Weighted fold training uses Tomek Links followed by class weights, and validation-based early stopping has a patience of 20 rounds. The selected configuration is refitted on the cleaned training pool. Actual execution counts and selected parameters require the completed training record; configured budgets are not completed-run measurements (Network Guardian IDS Team, 2026b).
+The XGBoost study uses a configured budget of 30 trials per invocation. Its saved history contains 90 records: 78 completed and 12 pruned. Trial 81 was selected with mean validation Macro F1 of 0.950842. Five stratified folds, class-weighted fold training, Tomek Links, and validation-based early stopping with patience 20 were retained. Final refitting disables early stopping because no eval_set is supplied; the saved test partition is not used for refit (Network Guardian IDS Team, 2026i).
 
 #### 3.2.4 Model Results
 
-Selected XGBoost parameters, validation statistics, execution times, and held-out test metrics are not yet available.
+XGBoost trial 81 reports mean CV Macro F1 of 0.950842. Its metadata SD of 0.025954 is trial-value dispersion and is not a fold SD. Held-out test Macro F1 was 0.945134, weighted F1 0.998961, R2L recall 0.992000, and U2R recall 0.769231. Recorded full-test prediction took 0.126 seconds. The execution report records an approximately 1 hour 55 minute training wall time, which is not a controlled cross-device runtime comparison (Network Guardian IDS Team, 2026h, 2026i).
 
 ### 3.3 TabNet
 
@@ -221,16 +219,16 @@ TabNet applies sequential attention to feature selection in a neural network for
 
 | Parameter | Search range | Selected value |
 | --- | --- | --- |
-| n_d and n_a | Each 8, 16, 24 or 32 | Under verification |
-| n_steps | 3 to 7 | Under verification |
-| gamma | 1.0 to 1.6 | Under verification |
-| lambda_sparse | 0.00001 to 0.005 logarithmic | Under verification |
-| n_independent | 1 to 3 | Under verification |
-| n_shared | 1 to 3 | Under verification |
-| momentum | 0.02 to 0.10 | Under verification |
-| mask_type | sparsemax or entmax | Under verification |
-| batch_size | 512, 1024 or 2048 | Under verification |
-| virtual_batch_size | 128 or 256 | Under verification |
+| n_d and n_a | Each 8, 16, 24 or 32 | 24 and 32 |
+| n_steps | 3 to 7 | 6 |
+| gamma | 1.0 to 1.6 | 1.29608 |
+| lambda_sparse | 0.00001 to 0.005 logarithmic | 7.91193e-05 |
+| n_independent | 1 to 3 | 2 |
+| n_shared | 1 to 3 | 1 |
+| momentum | 0.02 to 0.10 | 0.0655497 |
+| mask_type | sparsemax or entmax | entmax |
+| batch_size | 512, 1024 or 2048 | 512 |
+| virtual_batch_size | 128 or 256 | 256 |
 
 #### 3.3.3 Training Procedure
 
@@ -238,9 +236,7 @@ TabNet uses 20 configured Optuna trials and three stratified validation folds. W
 
 #### 3.3.4 Model Results
 
-TabNet training was completed, and model loading was verified. Numerical validation summaries remain under verification because the exported Optuna intermediate values represent cumulative means across completed folds rather than independent fold scores. These cumulative values cannot be used directly to estimate dispersion among folds. Held-out test performance has not yet been established (Network Guardian IDS Team, 2026c).
-
-TabNet validation statistics are under verification. Execution times and held-out test metrics are not yet available.
+TabNet trial 16 reports mean CV Macro F1 of 0.921225. Its exported cumulative means are not independent fold scores, and the metadata SD of 0.019250 describes trial-value dispersion. Held-out test Macro F1 was 0.930622, weighted F1 0.997602, R2L recall 0.976000, and U2R recall 0.769231. Full-test prediction took 1.091 seconds in the reported evaluation environment. Model loading and offline evaluation are verified. The updated bridge passes raw engineered features to match TabNet training, but a real TabNet API request using the model artifact remains unverified (Network Guardian IDS Team, 2026c, 2026g, 2026h).
 
 ### 3.4 Common training protocol and imbalance handling
 
@@ -256,98 +252,208 @@ Successful requests return a family label, confidence percentage, threat indicat
 
 Functional verification passed 10 Node API tests and three Python bridge tests. A real HTTP inference request using the RF artifact returned a valid response, and reversing the raw JSON key order preserved that response. These checks establish tested interface behavior, not classifier accuracy. No training or test-set evaluation was performed during backend verification (Network Guardian IDS Team, 2026g).
 
-The inference bridge supports the XGBoost artifact format, although real-model integration has not yet been verified. TabNet inference remains disabled because the specified inference transformation includes scaling whereas the training implementation consumes unscaled engineered arrays. Matching the training and inference representation is a prerequisite for enabling this model. Complete dashboard integration has not yet been verified.
+The updated API contract and bridge pass raw engineered features to TabNet, matching the saved model's training representation. Repository tests cover routing with fixtures, but this integration did not verify a real TabNet API request using the model artifact. XGBoost receiving-device verification also remains pending. Offline test evaluation does not establish live-route readiness (Network Guardian IDS Team, 2026g, 2026h, 2026k).
 
 ## IV. Model Metadata
 
-Table 6 summarizes the experimental configuration. Random Forest selected parameters are described in Section 3.1. Execution times and unavailable performance values remain unreported. Training recall, validation recall, and test recall are treated as distinct quantities.
+All models use the same 43 encoded predictors, target family, random state 42, 109,188 training records before resampling, and 36,396 reserved test records. The metadata table distinguishes configurations, actual study history, and measured results.
 
-**Table 6. Experimental model configuration**
+**Table 6. Experimental model metadata**
 
-| Item | Random Forest | XGBoost | TabNet |
+| Metadata | Random Forest | XGBoost | TabNet |
 | --- | --- | --- | --- |
-| Family | Bagging | Gradient boosting | Tabular attention |
+| Algorithm | Tree bagging | Gradient boosting | Sequential attention |
+| Target | family, five classes | family, five classes | family, five classes |
 | Input features | 43 | 43 | 43 |
-| Training rows before resampling | 109,188 | 109,188 | 109,188 |
-| Reserved test rows | 36,396 | 36,396 | 36,396 |
-| Configured trials | 20 | 30 | 20 |
-| Validation folds | 5 | 5 | 3 |
+| Features used | All encoded predictors | All encoded predictors | All encoded predictors |
+| Training rows | 109,188 | 109,188 | 109,188 |
+| Test rows | 36,396 | 36,396 | 36,396 |
 | Random state | 42 | 42 | 42 |
-| Selected parameters | Trial 17 see 3.1 | Not available | Under verification |
+| Validation folds | 5 | 5 | 3 |
+| Best trial | 17 | 81 | 16 |
+| Configured trial budget | 20 | 30 per invocation | 20 |
+| Recorded trials | 20 | 90 | 20 |
+| Main measure | Macro F1 | Macro F1 | Macro F1 |
+| Test Macro F1 | 0.933095 | 0.945134 | 0.930622 |
+| Full-test prediction (s) | 0.151 | 0.126 | 1.091 |
+| Training wall time | Not recorded consistently | About 1 h 55 min, reported | Not recorded consistently |
 | Model artifact | rf_baseline.joblib | xgb_optuna.joblib | tabnet_best.zip |
-| Measured runtime | Not available | Not available | Not available |
-| Test metrics | Not available | Not available | Not available |
 
-Sources: model configuration records, prepared-data manifests, and documented execution results (Network Guardian IDS Team, 2026b, 2026c, 2026f). Configured budgets describe the intended study and must not be substituted for the actual completed and pruned trial counts.
+Sources: models/*.meta.json, outputs/02_training/optuna_*_trials.csv, and the execution/evaluation reports. The XGBoost trial log contains 90 records, including 78 completed and 12 pruned, whereas 30 is the configured per-invocation budget. The sidecar alone does not describe the accumulated search history (Network Guardian IDS Team, 2026h, 2026i).
 
 ## V. Model Comparison and Evaluation
 
-### 5.1 Comparative results
+### 5.1 Comparative Results
 
-Only the available Random Forest validation summary is reported. The complete test comparison remains to be established.
+The selected study objective is the mean validation Macro F1. Five folds were used for the tree models and three for TabNet. Table entries preserve the configured and recorded trial counts separately; repeated study execution can accumulate additional trial indices.
 
-**Table 7. Available validation summary and pending test comparison**
+**Table 7. Selected validation objectives and optimization records**
+
+| Model | CV mean | Folds | Best trial | Recorded trials |
+| --- | --- | --- | --- | --- |
+| Random Forest | 0.950540 | 5 | 17 | 20 (20 complete, 0 pruned) |
+| XGBoost | 0.950842 | 5 | 81 | 90 (78 complete, 12 pruned) |
+| TabNet | 0.921225 | 3 | 16 | 20 (15 complete, 5 pruned) |
+
+Source: outputs/02_training/model_comparison.csv, model metadata, and optuna_*_trials.csv. Random Forest has independently recorded best-trial fold SD of 0.021178. XGBoost and TabNet metadata values of 0.025954 and 0.019250 come from _safe_cv_std, which computes dispersion across recorded trial values, including non-null pruned values. They are not fold-level standard deviations and are not displayed as comparable CV error bars.
+
+The XGBoost and TabNet *_cv_scores.csv files contain cumulative fold means reported to Optuna. A cumulative mean after successive folds is not an independent fold score. The final cumulative value agrees with the selected objective, but directly taking dispersion across these exports would answer the wrong question. Confirmed independent fold reporting remains a documentation dependency (Network Guardian IDS Team, 2026b, 2026i).
+
+The saved models were evaluated on 36,396 frozen test connections with 43 features and the canonical class order. The exported prediction rows reproduce the reported per-class F1 and Macro F1 values. No training, tuning, or resplitting was performed for this manuscript integration. XGBoost achieved test Macro F1 of 0.945134, followed by Random Forest at 0.933095 and TabNet at 0.930622. (Network Guardian IDS Team, 2026h)
+
+**Table 8. Frozen test-set comparison**
 
 | Measure | Random Forest | XGBoost | TabNet |
 | --- | --- | --- | --- |
-| CV Macro F1 and dispersion | 0.950540 and SD 0.021178 | Not available | Not available |
-| Test Macro F1 | Not available | Not available | Not available |
-| Test weighted F1 | Not available | Not available | Not available |
-| Normal recall | Not available | Not available | Not available |
-| DoS recall | Not available | Not available | Not available |
-| Probe recall | Not available | Not available | Not available |
-| R2L recall | Not available | Not available | Not available |
-| U2R recall | Not available | Not available | Not available |
-| Training time | Not available | Not available | Not available |
-| Prediction time | Not available | Not available | Not available |
+| Test Macro F1 | 0.933095 | 0.945134 | 0.930622 |
+| Test weighted F1 | 0.998905 | 0.998961 | 0.997602 |
+| Test accuracy | 0.998901 | 0.998956 | 0.997555 |
+| Normal recall | 0.999408 | 0.999044 | 0.996903 |
+| DOS recall | 0.999707 | 0.999560 | 0.999414 |
+| Probe recall | 0.984962 | 0.988722 | 0.992481 |
+| R2L recall | 0.952000 | 0.992000 | 0.976000 |
+| U2R recall | 0.769231 | 0.769231 | 0.769231 |
+| Full-test prediction time (s) | 0.151 | 0.126 | 1.091 |
 
-Table 7 separates the available RF validation result from unmeasured test outcomes. Pooled validation recalls appear in Section 3.1. A complete comparison requires verified results for all three models (Network Guardian IDS Team, 2026f).
+Sources: outputs/03_evaluation/test_set_evaluation.json and per_class_metrics.csv; weighted F1 and prediction times are recorded in the evaluation report. Timing covers prediction of the full test matrix in that run, not HTTP response time, model loading, or a repeated deployment benchmark. Complete hardware and repetition details are not supplied (Network Guardian IDS Team, 2026h).
 
-### 5.2 Error analysis
+**Table 9. Class precision and recall on the frozen test set**
 
-Error analysis will distinguish missed attacks, false alarms, and confusion between attack families. A false negative occurs when an attack is classified as normal; a false positive occurs when normal traffic is classified as an attack. Rates will be accompanied by counts and class support, particularly for the 13 U2R test examples.
+| Class | Support | RF P | RF R | XGB P | XGB R | Tab P | Tab R |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Normal | 21958 | 0.998998 | 0.999408 | 0.999544 | 0.999044 | 0.999270 | 0.996903 |
+| Dos | 13643 | 0.999780 | 0.999707 | 0.999707 | 0.999560 | 0.999707 | 0.999414 |
+| Probe | 532 | 0.992424 | 0.984962 | 0.985019 | 0.988722 | 0.953069 | 0.992481 |
+| R2L | 250 | 0.975410 | 0.952000 | 0.950192 | 0.992000 | 0.859155 | 0.976000 |
+| U2R | 13 | 0.666667 | 0.769231 | 0.769231 | 0.769231 | 0.769231 | 0.769231 |
 
-Observed error counts and confusion patterns will be reported after completion of held-out evaluation.
+Source: outputs/03_evaluation/per_class_metrics.csv. P denotes precision and R recall. The normalized CSV adds support_fraction while retaining metrics on the 0–1 scale; its project-wide schema is not yet confirmed. The unambiguous standard metrics are used here.
+
+### 5.2 Error Analysis
+
+All three models missed the same three U2R records, identified at zero-based exported-row positions 20207, 30364, and 32453. RF and TabNet labeled all three normal. XGBoost labeled the first R2L and the other two normal. Equal family recall therefore reflects shared missed records, but the operational threat indicators differ for one case. This agreement does not establish a permanent detection ceiling or prove that the features are intrinsically inseparable.
+
+**Table 10. Attack-family misses and operational detection errors**
+
+| Model | U2R misses | R2L misses | Attack as normal | Normal as attack |
+| --- | --- | --- | --- | --- |
+| Random Forest | 3 | 12 | 22 | 13 |
+| XGBoost | 3 | 2 | 10 | 21 |
+| TabNet | 3 | 6 | 16 | 68 |
+
+Source: outputs/03_evaluation/test_predictions.csv; counts reconstructed without refitting. An attack-family miss includes misclassification into another attack family. It differs from an undetected attack classified as normal. Normal-as-attack errors correspond to false alarms under the binary threat indicator.
+
+XGBoost correctly classified 248 of 250 R2L records, compared with 238 for Random Forest and 244 for TabNet. Its R2L precision was 0.950192, below Random Forest at 0.975410 but above TabNet at 0.859155. This tradeoff prevents the higher R2L recall from being interpreted as superiority on every error measure. One U2R test error changes recall by approximately 7.69 percentage points; no significance test or operational error-cost model has been established.
 
 ### 5.3 Overfitting Analysis
 
-**Table 8. Training and validation comparison pending verified measurements**
+Cross-validation objectives, in-sample performance, and test performance measure different conditions. The following table reports CV minus test Macro F1; it is not a training-minus-test or training-minus-validation gap.
 
-| Model | Train Macro F1 | Validation Macro F1 | Gap |
+**Table 11. Validation objective and held-out test difference**
+
+| Model | CV mean | Test Macro F1 | CV minus test |
 | --- | --- | --- | --- |
-| Random Forest | Not available | 0.950540 | Not available |
-| XGBoost | Not available | Not available | Not available |
-| TabNet | Under verification | Under verification | Under verification |
+| Random Forest | 0.950540 | 0.933095 | 0.017445 |
+| XGBoost | 0.950842 | 0.945134 | 0.005708 |
+| TabNet | 0.921225 | 0.930622 | -0.009397 |
 
-Training performance, cross validation performance, and test performance measure different conditions. A training to validation gap can indicate optimism but cannot by itself prove severe overfitting. The analysis will consider the final refit procedure, trial selection, fold construction, and the preprocessing limitations identified in Section II. A high training recall for a rare class does not establish that the class generalizes to unseen records.
+Sources: outputs/02_training/model_comparison.csv and outputs/03_evaluation/test_set_evaluation.json. The RF and XGBoost differences are 0.017445 and 0.005708; TabNet test Macro F1 exceeds its CV mean by 0.009397. Unequal fold support and one random test partition qualify interpretation; these differences alone cannot establish absence of overfitting.
 
-Complete training, validation, and test comparisons are not yet available.
+A separate TabNet verification report records in-sample Macro F1 of 0.962640. Its difference from the recorded CV mean is 0.041415 and from test Macro F1 is approximately 0.032018. These comparisons are attributed to the report and are not newly generated training evaluations. Comparable full-training Macro F1 for RF and XGBoost remains unavailable (Network Guardian IDS Team, 2026c, 2026h).
 
-### 5.4 Model recommendation
+### 5.4 Model Recommendation
 
-A final recommendation requires complete held-out evaluation. Model selection will consider validation performance, rare-class detection, runtime, interpretability, and inference requirements. Low class support and unequal validation-fold counts limit comparative conclusions. The test partition will not be used for additional tuning.
+XGBoost is the preferred candidate for this benchmark, with test Macro F1 of 0.945134, R2L recall of 0.992000, and recorded batch prediction time of 0.126 seconds. Its Macro F1 advantage over RF is 0.012039 and over TabNet 0.014512. No statistical significance or production-readiness claim is established.
+
+All models tie on U2R recall. RF has fewer normal false alarms, so the recommendation depends on error tradeoffs. Independent validation, calibration, and real API checks for XGBoost and TabNet remain deployment requirements.
 
 ## VI. Results and Visualizations
 
-The available preparation figures summarize class balance and numerical correlation. They document the input data and feature selection context, rather than classifier performance. Final confusion matrices, precision recall curves, and explanation plots will be added after completion of held-out evaluation.
+The following figures were exported from the completed evaluation. The class-distribution plot uses frozen split counts; the remaining plots describe saved-model predictions on the test partition. They retain the original axes and class ordering. Sampled SHAP summaries, a local explanation, and TabNet attention analysis are presented below.
 
-![Preparation figure 1](../../outputs/01_eda/family_distribution.png)
+![Evaluation figure 1](../../outputs/03_evaluation/class_distribution.png)
 
-**Figure 1. Class distribution before and after deduplication**
+**Figure 1. Class distribution in the frozen training and test partitions**
 
-Source: outputs/01_eda/family_distribution.png, generated by Notebook 01. Raw DoS frequency is reduced substantially by duplicate removal, while U2R remains rare.
+Source: outputs/03_evaluation/class_distribution.png.
 
-![Preparation figure 2](../../outputs/01_eda/correlation_heatmap.png)
+![Evaluation figure 2](../../outputs/03_evaluation/confusion_matrix_rf.png)
 
-**Figure 2. Absolute Pearson correlation before correlation pruning**
+**Figure 2. Random Forest confusion matrix on the frozen test set**
 
-Source: outputs/01_eda/correlation_heatmap.png, generated by Notebook 01. Strongly correlated fields motivate removal of later columns under the fixed 0.90 threshold.
+Source: outputs/03_evaluation/confusion_matrix_rf.png.
 
-### 6.1 Evaluation and model explanations
+![Evaluation figure 3](../../outputs/03_evaluation/confusion_matrix_xgb.png)
 
-Confusion matrices, rare-class precision-recall curves, SHAP plots, and attention visualizations will be presented after the designated evaluation is completed.
+**Figure 3. XGBoost confusion matrix on the frozen test set**
 
-SHAP attributes a prediction to input features through an additive explanation framework (Lundberg & Lee, 2017). TabNet masks indicate feature selection within its own architecture. These explanations describe model behavior and should not be presented as causal proof that a connection is malicious.
+Source: outputs/03_evaluation/confusion_matrix_xgb.png.
+
+![Evaluation figure 4](../../outputs/03_evaluation/confusion_matrix_tabnet.png)
+
+**Figure 4. TabNet confusion matrix on the frozen test set**
+
+Source: outputs/03_evaluation/confusion_matrix_tabnet.png.
+
+![Evaluation figure 5](../../outputs/03_evaluation/pr_curve_u2r.png)
+
+**Figure 5. U2R precision recall curves for the three saved models**
+
+Source: outputs/03_evaluation/pr_curve_u2r.png.
+
+![Evaluation figure 6](../../outputs/03_evaluation/pr_curve_r2l.png)
+
+**Figure 6. R2L precision recall curves for the three saved models**
+
+Source: outputs/03_evaluation/pr_curve_r2l.png.
+
+![Evaluation figure 7](../../outputs/03_evaluation/model_comparison_visual.png)
+
+**Figure 7. Model comparison from the frozen test evaluation**
+
+Source: outputs/03_evaluation/model_comparison_visual.png.
+
+Precision-recall curves describe probability ranking across thresholds; they do not establish calibration or a deployed alert threshold. The comparison graphic retains its source labels; any cross-validation dispersion shown must be interpreted under the reporting qualifications given in the validation table. (Network Guardian IDS Team, 2026h)
+
+### 6.1 Model Explanations
+
+TreeExplainer was applied to 1,000 sampled frozen-test records using random seed 42. Each observation explains its own predicted class; the combined summaries therefore mix output classes. The plots display the 20 leading features. Positive contributions concern the selected class output for that observation, not a common attack-versus-normal score. Absolute scales are not directly comparable between RF and XGBoost (Network Guardian IDS Team, 2026l).
+
+![Evaluation figure 8](../../outputs/03_evaluation/shap_summary_rf.png)
+
+**Figure 8. Random Forest predicted-class SHAP summary on 1,000 test records**
+
+Source: outputs/03_evaluation/shap_summary_rf.png.
+
+The RF summary ranks service_freq, src_bytes, and dst_bytes highest, followed by count. These fields describe service prevalence and traffic volume in the engineered representation. Because the explained class changes between records, a positive contribution cannot be read as a universal increase in attack probability. The figure summarizes the sampled population rather than establishing rare-class feature effects.
+
+![Evaluation figure 9](../../outputs/03_evaluation/shap_summary_xgb.png)
+
+**Figure 9. XGBoost predicted-class SHAP summary on 1,000 test records**
+
+Source: outputs/03_evaluation/shap_summary_xgb.png.
+
+The XGBoost summary also ranks service_freq first, followed by count and src_bytes. flag_S0 and host statistics contribute to the displayed ordering. Agreement on some leading fields indicates shared use of the prepared representation, not proof that a field causes an intrusion or that the models use identical decision rules. Different model-output units qualify comparisons of SHAP magnitudes.
+
+![Evaluation figure 10](../../outputs/03_evaluation/shap_local_example.png)
+
+**Figure 10. XGBoost U2R explanation for test row 29522**
+
+Source: outputs/03_evaluation/shap_local_example.png.
+
+The local example is a correctly classified U2R record selected for the highest recorded XGBoost U2R confidence among correct candidates. The saved probability is approximately 0.999486. The displayed class-output score is 5.551 relative to a baseline of 0.957; those waterfall values are not probabilities. Duration and dst_bytes show positive contributions of approximately 1.69 and 1.35, while root_shell and num_file_creations also contribute positively. Duration and byte values are log-transformed model inputs, not raw seconds or byte counts (Network Guardian IDS Team, 2026l).
+
+This selected success case cannot explain the three missed U2R records or establish typical U2R behavior. Inspection of failed cases and additional rare-class data remains necessary. Some source waterfall annotations are abbreviated or truncated; the interpretation uses clearly legible values and does not reconstruct missing labels.
+
+![Evaluation figure 11](../../outputs/03_evaluation/tabnet_attention_mask.png)
+
+**Figure 11. TabNet attention averaged over decision steps and 1,000 test records**
+
+Source: outputs/03_evaluation/tabnet_attention_mask.png.
+
+The attention plot averages feature-selection masks across decision steps and a separately drawn 1,000-record test sample. Its leading fields are service_freq, dst_host_diff_srv_rate, same_srv_rate, and protocol_type_tcp. This aggregate describes how the saved model allocates feature selection; it removes variation between individual records and steps. The TabNet sample is drawn after the tree sample from the same seeded generator, so the analysis does not assume identical sampled records.
+
+SHAP contributions and attention-mask averages answer different questions and are not interchangeable importance scores. Predicted-class pooling, finite samples, and selection of a high-confidence correct local example limit conclusions about rare failures. These descriptive outputs provide no causal proof, calibrated risk estimate, preprocessing ablation, or evidence that the shared U2R misses are unavoidable. These offline explanations do not establish live-route readiness for TabNet or XGBoost.
 
 ## VII. Discovery Log
 
@@ -367,37 +473,41 @@ Model persistence initially produced a duplicated zip extension for the TabNet a
 
 ### 7.4 Lessons and remaining evidence
 
-A central methodological lesson was the need to distinguish data-preparation findings, training diagnostics, validation results, and held-out evaluation. Configuration records and exported statistics must support each empirical claim. The remaining analyses include complete test-set evaluation, reconciliation of TabNet validation reporting, execution-time measurement, and examination of model explanations. A comparative recommendation requires this evidence for all three methods.
+A central methodological lesson was to distinguish preparation findings, training diagnostics, validation objectives, and held-out evaluation. Completed test exports now support model comparison. Sampled global explanations and one local success case are now included; explanations of missed attacks, comparable training metrics, corrected fold reporting, and deployment verification remain open. Numerical agreement alone does not resolve these questions.
 
 ### 7.5 Backend verification
 
-Backend verification identified risks arising from unchecked inputs, dependence on request-key order, and incomplete subprocess error handling. Schema validation, deterministic feature assembly, metadata checks, and consistent failure responses addressed these risks. Thirteen automated functional checks and a real Random Forest API request passed. The unresolved TabNet transformation mismatch remains a deployment limitation (Network Guardian IDS Team, 2026g).
+Backend verification passed 13 functional checks and a real RF request. The frontend now uses real evaluation data and enables the live endpoint. XGBoost receiving-device verification and a real TabNet API request remain open (Network Guardian IDS Team, 2026g, 2026k).
+
+### 7.6 Final refit and metric reporting
+
+The first XGBoost final-refit attempt required an eval_set because early stopping was still enabled. The corrected builder disables early stopping for refit and preserves the optimization study. The saved XGBoost study contains more trials than its per-invocation budget. Source inspection also distinguishes cumulative fold reports and trial-level dispersion from independent validation-fold statistics (Network Guardian IDS Team, 2026i).
 
 ## VIII. Executive Summary
 
 ### What problem did we set out to solve and why does it matter
 
-We investigate five class network intrusion detection, comparing three learning approaches while accounting for missed rare attacks and false alarms. The goal is an evidence based research comparison rather than a claim of production security.
+We compare three learning methods for distinguishing normal network connections from four attack families. Missed rare attacks and false alarms matter as much as aggregate correctness.
 
 ### What did we discover about the data that shaped our decisions
 
-The supplied file has 494,021 rows, substantial duplication, and only 52 U2R records. Preparation produced 145,584 unique feature vectors, a frozen 75 to 25 split, and 43 encoded inputs. Rare class support remains a material limitation.
+The supplied file contains 494,021 records, substantial duplication, and only 52 U2R examples. Preparation retained 145,584 records, split into 109,188 training and 36,396 test rows with 43 encoded inputs.
 
 ### Which approaches did we compare and how did we judge them
 
-The comparison covers Random Forest, XGBoost, and TabNet. Macro F1 gives each class equal weight; recall, confusion matrices, runtime, and explanations provide further context. RF validation Macro F1 is 0.950540 in the recorded validation study; test performance and the full comparison are pending. Tree models use five folds and TabNet uses three.
+Random Forest, XGBoost, and TabNet were evaluated on the same frozen test set. Macro F1 gives each class equal weight. Test scores were 0.933095, 0.945134, and 0.930622, respectively; class recall and measured prediction times describe additional tradeoffs.
 
 ### What do we recommend and what evidence supports it
 
-The recommendation remains pending. Confirmed training summaries and held out evaluation are needed before naming a preferred model or reporting a comparative advantage.
+XGBoost is the preferred candidate for this benchmark. It had the highest test Macro F1, R2L recall of 0.992000, and the shortest recorded full-test prediction time of 0.126 seconds. All models detected the same 10 of 13 U2R cases; deployment readiness still requires further checks.
 
 ### What are the limitations of our work and what would we do next
 
-The historical simulated benchmark, limited rare class support, and preprocessing performed before or outside individual folds limit generalization claims. Future work should use fold fitted preprocessing, controlled ablations, newer traffic, and measured inference cost.
+The historical simulated benchmark, only 13 U2R test records, preprocessing outside individual validation folds, and unequal optimization budgets limit generalization. Comparable training metrics and complete runtime provenance remain pending. The SHAP summaries and TabNet attention plot use samples of 1,000 test records; the local SHAP plot shows one selected, correctly classified U2R case. Future work should explain missed cases, use newer traffic, fit preprocessing within folds, and conduct controlled ablations.
 
 ### What was our biggest mistake or surprise and what did we learn from it
 
-A reproduced duplicate export cell reversed the intended label serialization fix. The corrected upstream notebook now passes validation. The team learned to check generated artifacts after the complete workflow; artifact verification was identified as a key methodological lesson.
+A duplicate notebook export replaced the corrected label format; the fixed notebook now passes verification. Later auditing distinguished cumulative fold means and trial dispersion from independent fold scores. The lesson is to verify both artifact contents and metric definitions.
 
 ## IX. Reflection
 
@@ -450,6 +560,16 @@ Network Guardian IDS Team. (2026e). Role 2 documentation and setup verification 
 Network Guardian IDS Team. (2026f). Random Forest configuration and validation statistics [Unpublished research record]. models/rf_baseline.meta.json; docs/reports/role-3-phase-2-amber-rf-baseline.md.
 
 Network Guardian IDS Team. (2026g). Backend inference implementation and functional verification [Unpublished research record]. docs/reports/role-2-phase-2-markie-backend-bridge.md; server/server.js; server/predict_bridge.py; server/validate.js; server/tests.
+
+Network Guardian IDS Team. (2026h). Frozen test evaluation and saved prediction outputs [Research record]. docs/reports/role-5-phase-3-dwayne-evaluation-suite.md; outputs/03_evaluation/test_set_evaluation.json; outputs/03_evaluation/per_class_metrics.csv; outputs/03_evaluation/test_predictions.csv; outputs/03_evaluation/*.png.
+
+Network Guardian IDS Team. (2026i). XGBoost execution and validation reporting [Research record]. docs/reports/role-4-phase-2-kit-xgboost-execution.md; docs/handoffs/xgboost.md; outputs/02_training/optuna_xgb_trials.csv; src/models.py.
+
+Network Guardian IDS Team. (2026j). Random Forest acceptance threshold decision [Project record]. docs/decision/decision_rf_cv_std_threshold_20261013.md.
+
+Network Guardian IDS Team. (2026k). Frontend connection to the live backend [Project record]. docs/reports/role-3-phase-3-amber-frontend-backend-integration.md; client/src/lib/data.ts.
+
+Network Guardian IDS Team. (2026l). Sampled model explanations and feature attention [Research record]. docs/reports/role-5-phase-4-dwayne-explainability.md; src/explainability.py; outputs/03_evaluation/shap_summary_rf.png; shap_summary_xgb.png; shap_local_example.png; tabnet_attention_mask.png. Repository snapshot 7108f414c049ca265bdd6b305e979abcd7a5c614.
 
 UCI KDD Archive. (1999). KDD Cup 1999 data. https://kdd.ics.uci.edu/databases/kddcup99/kddcup99
 

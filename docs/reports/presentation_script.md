@@ -1,6 +1,6 @@
 # Video Presentation Script and Structure
 
-**Status:** Phase 1 outline and rehearsal draft; results and live demo pending.
+**Status:** Results integrated into the rehearsal draft; live demo and recording pending.
 **Outline maintainer:** Markie (Role 2).
 **Production and editing owner:** Kenneth (Role 4).
 **Target runtime:** 7 minutes, within the required 5-8 minutes.
@@ -11,11 +11,11 @@
 | Time | Speaker | Segment | Evidence / visual |
 |---|---|---|---|
 | 0:00-1:15 | Kit Dustin | Problem, data, preparation | Title; `outputs/01_eda/family_distribution.png`; `outputs/01_eda/correlation_heatmap.png` |
-| 1:15-2:30 | Amber | Random Forest and SOC dashboard | RF contract; pending RF metrics; prepared dashboard demonstration |
-| 2:30-3:40 | Kenneth | XGBoost execution and runtime tradeoffs | XGBoost execution report and metadata, pending |
-| 3:40-5:10 | Dwayne | TabNet, evaluation, explainability | Confusion matrices, per-class metrics, SHAP and attention masks, pending |
+| 1:15-2:30 | Amber | Random Forest and SOC dashboard | RF test metrics and confusion matrix; prepared dashboard demonstration |
+| 2:30-3:40 | Kenneth | XGBoost execution and runtime tradeoffs | XGBoost execution report and metadata |
+| 3:40-5:10 | Dwayne | TabNet, evaluation, explainability | Confusion matrices, per-class metrics, sampled SHAP and attention figures |
 | 5:10-6:40 | Markie | Paper walkthrough and backend | Paper section map; summary; API contract; backend demo after Phase 2 |
-| 6:40-7:00 | Kit Dustin | Conclusion and handoff | Verified recommendation and limitations slide, pending |
+| 6:40-7:00 | Kit Dustin | Conclusion and handoff | Verified recommendation and limitations slide |
 
 Each window includes transitions. Rehearse the actual spoken script with screen changes; the timing table is a budget, not a measured recording duration. Shorten repeated model definitions before cutting rare-class error analysis.
 
@@ -25,7 +25,7 @@ Each window includes transitions. Rehearse the actual spoken script with screen 
 
 “Network Guardian IDS compares three machine learning approaches for classifying network connections. Our five categories are normal traffic, denial of service, probing, remote-to-local access, and user-to-root escalation. We focus on missed attacks and false alarms because overall accuracy can hide poor detection of rare classes.
 
-Our data-preparation report documents duplicated connections, skewed byte and duration values, and limited rare-class examples. The preparation pipeline removes duplicates and redundant features, transforms skewed values, and encodes categorical inputs. Encoders and scalers use the training partition; validation folds are kept separate from resampling. The paper will state the exact verified counts and split configuration. This historical benchmark supports an academic comparison, but it does not establish performance on modern production networks. Amber will introduce our baseline and dashboard.”
+Our data-preparation report documents duplicated connections, skewed byte and duration values, and limited rare-class examples. The preparation pipeline removes duplicates and redundant features, transforms skewed values, and encodes categorical inputs. Encoders and scalers use the training partition; validation folds are kept separate from resampling. The paper reports 494,021 supplied rows, 145,584 retained records, and a frozen split of 109,188 training and 36,396 test rows. This historical benchmark supports an academic comparison but does not establish performance on modern production networks. Amber will introduce our baseline and dashboard.”
 
 **Before recording:** Reconcile dataset counts with frozen manifests; identify exactly which distribution each EDA figure displays. Sources: Kit's Phase 2 report, sections 5-10; `docs/reports/paper_narrative_context.md`.
 
@@ -33,7 +33,7 @@ Our data-preparation report documents duplicated connections, skewed byte and du
 
 “Random Forest is our bagging baseline. It combines decision trees trained with randomness in their data and feature selection. We compare it with boosting and attention-based learning under the project's fixed training protocol.
 
-[Insert verified RF cross-validation Macro F1 and a rare-class tradeoff, with the source artifact visible.] The dashboard accepts connection statistics and categorical fields such as protocol, service, and flag. During the demonstration I will submit one prepared example and show the predicted family and confidence. Confidence should not be interpreted as proof that a connection is safe. We will explain an incorrect prediction as well as a correct one if the evaluation provides suitable examples. Kenneth will describe the boosting run.”
+RF test Macro F1 was 0.933095. Its U2R recall was 0.769231 and R2L recall was 0.952000. Show the confusion matrix and point out that RF produced fewer normal-as-attack errors than the other models. The dashboard accepts connection statistics and categorical fields such as protocol, service, and flag. During the demonstration I will submit one prepared example and show the predicted family and confidence. Confidence should not be interpreted as proof that a connection is safe. We will explain an incorrect prediction as well as a correct one if the evaluation provides suitable examples. Kenneth will describe the boosting run.”
 
 **Before recording:** Use `docs/contracts/role-3-rf-architecture-spec.md`, RF metadata, and `outputs/03_evaluation/confusion_matrix_rf.png`. Run the dashboard demonstration only after frontend-backend integration; keep an approved recording available if needed.
 
@@ -41,7 +41,7 @@ Our data-preparation report documents duplicated connections, skewed byte and du
 
 “XGBoost builds a sequence of trees that improves the model's predictions. Its tuning process searches the bounded parameter space in our execution contract and uses cross-validation Macro F1 as the objective. Early stopping during validation and resampling only within training folds help control overfitting and leakage.
 
-[Insert completed trial count, measured elapsed time, hardware, and cross-validation result.] These are measured results from our execution report, not estimated training budgets. We preserve the selected configuration and metadata so the run can be traced. Any execution failure and recovery is recorded in the Discovery Log. Dwayne will explain TabNet and evaluate all three models.”
+The saved search contains 90 records, 78 complete and 12 pruned, while 30 was the configured budget per invocation. Trial 81 had validation Macro F1 of 0.950842. Reported training time was about 1 hour 55 minutes; use the execution report for hardware details. These are measured results from our execution report, not estimated training budgets. We preserve the selected configuration and metadata so the run can be traced. Any execution failure and recovery is recorded in the Discovery Log. Dwayne will explain TabNet and evaluate all three models.”
 
 **Before recording:** Source values from `docs/reports/role-4-phase-2-kenneth-xgboost-execution.md` and `models/xgb_optuna.meta.json`; distinguish training time from prediction time.
 
@@ -51,25 +51,25 @@ Our data-preparation report documents duplicated connections, skewed byte and du
 
 [Show the verified comparison and state Macro F1 for each model.] We also examine precision, recall, and F1 for each class. A false negative is an attack classified incorrectly as safe; a false positive is normal traffic flagged as an attack. The U2R and R2L results matter even when overall accuracy looks strong.
 
-[Use a confusion matrix to explain one observed error and give its count.] [Show one sourced SHAP example and one TabNet attention mask.] These plots describe how models use features; they do not prove the cause of an intrusion. Our held-out test results are reported separately from tuning. Markie will connect this evidence to the paper and backend.”
+XGBoost correctly classified 248 of 250 R2L cases; Random Forest classified 238 and TabNet 244. All three identified 10 of 13 U2R cases and missed the same three records. Show the confusion matrix, then the selected XGBoost U2R waterfall and TabNet attention plot. The waterfall is one high-confidence correct example, so it does not explain the shared misses. SHAP and attention describe model behavior; neither establishes the cause of an intrusion. Held-out results remain separate from tuning. Markie will connect this evidence to the paper and backend.”
 
 **Before recording:** Use `outputs/03_evaluation/per_class_metrics.csv`, `test_set_evaluation.json`, `confusion_matrix_*.png`, `shap_local_example.png`, and `tabnet_attention_mask.png`. State actual plotted classes and values. Evaluation and figure production belong to Dwayne.
 
 ### Markie: paper walkthrough and backend
 
-“Our paper follows the professor's required structure. It begins with the problem and data preparation, then explains the three models and their metadata. The comparison, error analysis, and visualizations connect the results to the security question. The Discovery Log records actual mistakes and corrections, while the Executive Summary answers six questions in plain language. Each member provides an individual reflection, and the references disclose external sources and AI assistance.
+“Our Professor paper follows the required sections I–X, and the Portfolio version expands the same experiments into an academic manuscript. We now have test results for all three models. XGBoost had the highest Macro F1 at 0.945134 and correctly identified 248 of 250 R2L cases. All three models correctly identified 10 of 13 U2R cases and missed the same three. We recommend XGBoost as the preferred candidate for this benchmark, while retaining the limits of rare-class support and historical data.
 
-The backend interface connects the dashboard to Python inference. The planned route receives telemetry, validates it against our API contract, and passes it to a Python bridge. The bridge must reconstruct the model's feature order using the frozen preprocessing artifacts before returning a prediction.
+The Express backend validates 31 raw connection fields, and the Python bridge reconstructs the frozen 43-feature vector. Thirteen functional checks and a real RF API request passed. The dashboard now shows real static evaluation data, and its Analyze form uses the live endpoint. The merged bridge passes raw engineered features to TabNet to match its training input; a real TabNet API request and receiving-device XGBoost verification still need to be demonstrated.
 
-[After Phase 2, demonstrate one validated request and its actual response.] [Insert the evidence-backed recommendation and its limitation.] At this stage, the documentation scaffold is complete; backend implementation and final results are separate deliverables.”
+Our paper separates validation objectives, test results, and available training metrics. Sampled SHAP summaries, one local success case, and a TabNet attention plot are integrated. The figures do not explain the shared U2R misses, and each member still supplies their own reflection.”
 
-**Before recording:** Replace the final status sentence with the actual completion state. Use `docs/contracts/api_data_contract.md`, `docs/reports/paper.md` after integration, and the completed Role 2 Phase 2 report. Do not describe the planned bridge as implemented before it is verified.
+**Before recording:** Demonstrate one validated RF request using `server/examples/normal-smtp.json`, the running backend, and the actual response. Cite the test metrics and prediction exports; the sampled SHAP and attention figures are available in `outputs/03_evaluation/`; attribute them to Dwayne’s PR #22 source, now merged to main and explain their sampling limits. Treat recorded batch prediction timings separately from HTTP latency. Do not describe all live model routes as verified.
 
 ### Kit Dustin: conclusion
 
 “[State the selected model and the measured tradeoff supporting it.] The main lesson is to compare class-level detection, runtime, and explanations using traceable evidence. Future work should validate on newer traffic and test inference cost before deployment. Thank you.”
 
-**Before recording:** The conclusion must agree with paper Section V.4 and the Executive Summary.
+**Before recording:** The conclusion must agree with paper Section V.4 and the Executive Summary. Avoid suggesting that explanation figures resolve the missed U2R cases.
 
 ## 3. Asset readiness checklist
 
@@ -87,4 +87,4 @@ The backend interface connects the dashboard to Python inference. The planned ro
 
 Working sources: `docs/tasks/role_2.md`, `docs/tasks/role_3.md`, `docs/tasks/role_4.md`, `docs/tasks/role_5.md`, `docs/reports/paper_structure.md`, and `docs/reports/paper_narrative_context.md`. The user-supplied Team Coordination briefing assigns the video segments consistently with the role mandates. Instructions about channel posts in that briefing are coordination context; this outline does not send messages.
 
-Codex assisted with this Phase 1 outline. The team must check the final wording, measurements, and demonstration before recording and disclose AI assistance in paper Section X.
+Codex assisted with the script draft. The team must check the final wording, measurements, and demonstration before recording and disclose AI assistance in paper Section X.

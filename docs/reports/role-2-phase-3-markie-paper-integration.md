@@ -1,43 +1,49 @@
-# Role 2 Phase 3 Report: Professor and Portfolio Paper Drafts
+# Role 2 Phase 3 Report: Test Results and Explainability Integration
 
 **Owner:** Markie
-**Date:** 2026-10-13
-**Status:** In progress; both manuscript drafts ready for review, final evaluation integration pending.
-**Branch:** feature/role-2-backend-bridge
+**Updated:** 2026-10-14
+**Status:** Draft integrated; awaiting team review and remaining owner confirmations.
+**Branch:** `feature/role-2-paper-results`
+**Paper baseline:** main commit `e250700` (includes merged Phase 4 and UI integration).
+**Explainability source:** Dwayne's PR #22, merged to main; source commit `7108f414c049ca265bdd6b305e979abcd7a5c614`.
 
 ## Deliverables
 
 | Format | Manuscript text | Editable Word manuscript | Pages |
-|---|---|---|---|
-| Professor, primary graded deliverable | `docs/reports/paper.md` | `docs/reports/paper-draft.docx` | 25 |
-| Portfolio, supplemental academic deliverable | `docs/reports/paper-portfolio.md` | `docs/reports/paper-portfolio-draft.docx` | 24 |
+|---|---|---|---:|
+| Professor, primary graded deliverable | `docs/reports/paper.md` | `docs/reports/paper-draft.docx` | 35 |
+| Portfolio, supplemental academic deliverable | `docs/reports/paper-portfolio.md` | `docs/reports/paper-portfolio-draft.docx` | 33 |
 
-Both versions follow `docs/reports/paper_structure.md` and use the same experiments and evidence. The portfolio expansion introduces no new experiments or unsupported outcomes. The earlier user preference for 12-point body text was superseded by the request to follow the repository format.
+The papers use Times New Roman 11 pt, one-inch margins, page numbers, and paragraph indents. The Professor version uses 1.5 line spacing; Portfolio is one column with 1.15 spacing. The Professor Executive Summary is a one-page, six-question section. The Portfolio abstract is exactly 250 words. The editable Word and Markdown versions were synchronized from the same manuscript content.
 
-## Formatting and completed writing
+## Integrated evidence
 
-Professor: Times New Roman 11-point body, 1.5 spacing, one-inch margins, bottom-center page numbers, Roman top-level sections I–X, and Arabic decimal subsections. Model sections distinguish description, configuration, training procedure, and results. The 41-feature dictionary includes a role column. Search-space tables and the pending training-versus-validation comparison are included. The six-question Executive Summary fits one page.
+Both manuscripts distinguish validation objectives from the frozen test results, report precision and recall with class support, discuss the error counts, compare CV and test Macro F1, report measured batch prediction time, and qualify the benchmark recommendation. They include seven evaluation figures and four Phase 4 explanation figures: RF and XGBoost SHAP summaries, one selected local XGBoost U2R case, and TabNet attention averaged across decision steps and 1,000 sampled test rows.
 
-Portfolio: Times New Roman 11-point body, one column, 1.15 spacing, one-inch margins, bottom-center page numbers, and Arabic decimal numbering. Includes a 250-word structured abstract, keywords, Introduction, Background and Related Work, Dataset and Preprocessing, Methodology with formal notation, Experiments, Results, Explainability Analysis, Discussion with Threats to Validity, Conclusion and Future Work, Acknowledgments, References, AI disclosure, and Appendices A–C.
+The explainability artifacts and report are merged to main through PR #22. Both papers cite source commit `7108f414c049ca265bdd6b305e979abcd7a5c614`. The open PR #24 adds Role 5 Phase 5 draft material and a handoff to the paper lead; its cautions about verifying feature claims and row-level U2R misses were followed. The handoff itself does not replace the saved source artifacts. The local success example is not evidence about the three missed U2R cases. No causal claims or new model runs are made.
 
-Both use 0.5-inch first-line body paragraph indents, no first-line indent for headings/captions/table cells, and hanging reference indents. Main headings are larger and bold. References apply APA author-year conventions and title/publication italics. Technical sections use formal academic prose without personal-name attribution, handoff updates, PR numbers, or approval-status narrative.
+Held-out test Macro F1 is RF 0.933095, XGBoost 0.945134, and TabNet 0.930622. XGBoost is the preferred candidate for this benchmark based on Macro F1, R2L recall 0.992000, and the shortest recorded full-test batch time of 0.126 seconds. RF has fewer normal false alarms. All models correctly identify 10 of 13 U2R cases and miss the same three. The papers do not claim statistical superiority or production readiness.
 
-## Evidence and limitations
+## Reporting qualifications
 
-Preparation statistics, model protocols, backend implementation, 13 functional checks, and the real RF API smoke test remain source-attributed. RF training values and selected parameters are traced to the model sidecar and execution record in PR #13, commit 3706260. Cross-validation and out-of-bag scores remain distinct from pending test metrics. The RF validation standard deviation exceeds the specified threshold and is retained as a limitation. TabNet cumulative intermediate means are not treated as independent fold scores.
-
-The expanded background cites the original Random Forest, XGBoost, TabNet, and SHAP papers, NIST SP 800-94, and the official KDD Cup archive. Published methods motivate the comparison; no directly comparable numerical literature baseline or model winner is invented.
-
-## Remaining dependencies
-
-Complete XGBoost artifacts/results; verified TabNet validation statistics; held-out evaluation and explanation figures; runtime and hardware measurements; training acceptance; individual member reflections; full author names, affiliations, corresponding-author contact, professor name, and the original professor cover-page template. The TabNet training/inference scaling discrepancy remains unresolved. Phase 3 stays in progress until final evidence is integrated.
+1. RF independently records fold SD 0.021178. Its acceptance threshold changed from 0.02 to 0.025 after the run; the papers disclose the post-run adjustment.
+2. XGBoost and TabNet metadata SD values 0.025954 and 0.019250 are `_safe_cv_std` dispersion across non-null recorded trial values, including pruned trials. They are not best-trial fold SDs.
+3. XGBoost and TabNet fold CSVs export cumulative fold means, not independent fold scores. Their cumulative values must not be used to estimate fold variability.
+4. The XGBoost log has 90 records (78 complete, 12 pruned); 30 is its configured per-invocation budget. RF has 20 complete records; TabNet has 15 complete and five pruned.
+5. CV-minus-test gaps are labeled explicitly. They are not training-minus-test or training-minus-validation gaps. The separate TabNet in-sample score is attributed to its verification report; comparable RF/XGBoost full-training Macro F1 remains unavailable.
+6. Equal U2R recall does not prove an intrinsic ceiling. The models miss the same three rows, but XGBoost labels one R2L and the other two normal, while RF and TabNet label all three normal. Attack-family misses and attacks labeled normal are reported separately.
+7. The normalized-metrics CSV schema remains provisional; the papers use standard per-class metrics. Backend readiness is separate from offline evaluation: merged PR #23 aligns the TabNet bridge and contract to its raw training inputs; a real TabNet artifact request and receiving-device XGBoost verification remain open. The merged dashboard panels now use exported evaluation data, while the analyze form and threat gauge remain live API surfaces.
 
 ## Verification
 
-Checked font, line spacing, margins, section hierarchy, all 41 feature rows, the abstract word count, captions, and shared numerical claims. The packaged renderer could not locate LibreOffice on this Windows host, so the manuscripts were rendered through Microsoft Word's PDF exporter and rasterized for visual review. Reviewed all 25 Professor pages and 24 Portfolio pages. After final citation/cross-reference edits, pixel comparisons identified three changed Portfolio pages; all three were reinspected, with the remaining pages unchanged.
+All 36,396 exported prediction rows reproduce the JSON per-class F1, Macro F1, and accuracy. The weighted F1 values match the report. Trial-log calculations reproduce the XGBoost and TabNet metadata SD fields. Reconstructed attack-as-normal counts are RF 22, XGBoost 10, TabNet 16; normal-as-attack counts are RF 13, XGBoost 21, TabNet 68. These are audits of supplied outputs, not fresh model evaluations.
 
-Only manuscript Word/Markdown copies and this report are committed. QA PDFs, page images, and authoring scripts remain outside the repository. Model binaries are excluded.
+The two Word files passed checks for 11-point Times New Roman body text, one-inch margins, bottom-center page numbers, paragraph indents, heading structure, the 41-feature dictionary, required tables, abstract length, and 11 figures each. Microsoft Word PDF export produced 35 Professor pages and 33 Portfolio pages; rendered pages were reviewed after the explanation figures were added. Relative figure links in Markdown point to files in `outputs/03_evaluation/`.
 
-## Handoff
+## Remaining work
 
-Kit can review both versions in PR #14. `paper.md` and `paper-draft.docx` remain the primary professor-format deliverables. The portfolio files are supplemental. Both drafts must be updated from the same verified evaluation artifacts before final submission.
+The draft needs contributor review of source attribution, interpretations, and final paper wording. Full author, affiliation, professor, and contact details and personal reflections still need confirmation. Evidence questions remain for independent fold reporting, comparable full-training metrics, complete runtime provenance, normalized-schema confirmation, and cross-device deployment. Kit's final review and contributor confirmation are pending. Dwayne's open PR #24 contains parallel Phase 5 draft material for review; this branch has already integrated verified test and explainability evidence.
+
+## Sources
+
+`outputs/03_evaluation/test_set_evaluation.json`, `per_class_metrics.csv`, `test_predictions.csv`, supplied evaluation PNGs and four Phase 4 PNGs; `models/*.meta.json`; `outputs/02_training/optuna_*_trials.csv`; `src/models.py`; `docs/reports/role-5-phase-3-dwayne-evaluation-suite.md`; `docs/reports/role-4-phase-2-kit-xgboost-execution.md`; `docs/reports/role-5-phase-4-dwayne-explainability.md` from snapshot `7108f414c049ca265bdd6b305e979abcd7a5c614`; `docs/handoffs/model_comparison.md`; `docs/handoffs/xgboost.md`; the RF acceptance decision record, the updated `docs/contracts/api_data_contract.md`, merged `docs/handoffs/ui_phase_handoff.md`, and Dwayne's open PR #24 Phase 5 handoff.
