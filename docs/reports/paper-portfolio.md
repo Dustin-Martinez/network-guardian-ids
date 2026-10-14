@@ -207,7 +207,7 @@ The duration, src_bytes, and dst_bytes fields receive log(1 + x) transformations
 
 ### 3.8 Partitioning and Scaling
 
-A stratified 75 percent training and 25 percent test split uses random state 42. The resulting arrays contain 109,188 training rows and 36,396 test rows. Features are float64 and labels are fixed width Unicode. A StandardScaler is fit on the training partition and saved, but the TabNet training functions do not apply it. The updated inference bridge passes raw engineered features to TabNet to match its training representation; a real TabNet API request remains unverified. Tree models also use the unscaled engineered representation. The saved JSON manifests specify the input order, class order, and frozen split, while saved encoders provide the inference transformation.
+A stratified 75 percent training and 25 percent test split uses random state 42. The 75/25 ratio retains 39 of the 52 U2R records for training and places 13 in the test set, compared with about 10 U2R test records under an 80/20 split. Stratification preserves approximate class proportions in each partition; without it, the small U2R count could vary widely across reruns. The larger test share improves the visibility of rare-class errors, although 13 cases remain a small support.
 
 The categorical encoders and scaler were fitted to the complete training partition rather than refitted within each cross-validation fold. Validation-fold covariates therefore contributed to preprocessing statistics. The held-out test partition was excluded from their fitting. Cross-validation estimates should be interpreted with this qualification; fold-specific preprocessing would provide a stricter assessment during model selection.
 
@@ -268,7 +268,7 @@ Optuna searches bounded model-specific spaces using validation Macro F1 (Akiba e
 
 ### 4.4 Cross Validation and Final Refit
 
-The implementations use a shared random state and persist optimization studies for traceability. Optuna selects configurations according to validation Macro F1; pruning can stop unpromising trials before they consume the full budget (Akiba et al., 2019). Tomek Links removes selected boundary examples from fold training data, while validation subsets are not resampled. Class weights increase the contribution of less frequent classes. The final test partition is reserved for Notebook 03 and is not passed to model tuning functions.
+The split and model runs use random state 42 where supported, and optimization studies are retained for traceability. Searches use bounded model-specific ranges, and Optuna evaluates mean validation Macro F1 across folds; pruning may stop unpromising trials early (Akiba et al., 2019). XGBoost depth is bounded at 3 to 10, its minimum child weight at 1 or greater, reg_alpha at 0 to 10, and reg_lambda at 1 to 20; TabNet n_steps is bounded at 3 to 7. Tomek Links and class weighting are applied to fold-training data, not validation data. The model objective functions do not accept X_test or y_test; the frozen test partition is reserved for final evaluation. Encoders and the saved scaler are fit on the training partition, excluding the held-out test set. However, data-dependent feature pruning and encoders were not refit within each cross-validation fold, so validation-fold covariates contributed to preprocessing. These controls protect the test boundary and constrain search, but do not remove that cross-validation exposure or establish that overfitting is absent.
 
 Macro F1 is the arithmetic mean of the five class F1 values. For each class, precision measures how many predicted members are correct, recall measures how many actual members are recovered, and F1 balances precision and recall. Equal class weighting prevents the most frequent category from dominating the summary. Per class support and confusion matrices remain necessary because the same Macro F1 can arise from different error patterns.
 
@@ -276,7 +276,7 @@ Each trial was assessed with five stratified folds. Tomek Links and class weight
 
 The XGBoost study uses a configured budget of 30 trials per invocation. Its saved history contains 90 records: 78 completed and 12 pruned. Trial 81 was selected with mean validation Macro F1 of 0.950842. Five stratified folds, class-weighted fold training, Tomek Links, and validation-based early stopping with patience 20 were retained. Final refitting disables early stopping because no eval_set is supplied; the saved test partition is not used for refit (Network Guardian IDS Team, 2026i).
 
-TabNet uses 20 configured Optuna trials and three stratified validation folds. With 39 U2R training records, three folds place approximately 13 examples in each validation fold, compared with roughly seven or eight under five folds. This increases support per fold but does not establish that the rare class estimate is stable. The different fold counts must remain visible when comparing the algorithms. Tomek Links is restricted to fold training subsets. The final refit includes an internal 10 percent validation subset for early stopping rather than unrestricted training on the entire pool.
+TabNet uses 20 configured Optuna trials and three stratified validation folds. This fold count was specified in the Role 5 execution contract before training as a design choice for increasing rare-class support, rather than selected after results were observed. With 39 U2R training records, three folds place approximately 13 examples in each validation fold, compared with roughly seven or eight under five folds. The increased support helps describe each validation fold but does not establish that the rare-class estimate is stable. The different fold counts must remain visible when comparing algorithms. Tomek Links is restricted to fold-training subsets. Final refitting includes an internal 10 percent validation subset for early stopping rather than unrestricted training on the entire pool (Network Guardian IDS Team, 2026b, 2026c).
 
 ### 4.5 Evaluation and Error Analysis
 
@@ -285,6 +285,13 @@ The saved RF, XGBoost, and TabNet artifacts were evaluated once on the frozen 36
 ### 4.6 Inference Architecture
 
 The backend implements POST /api/analyze on localhost port 5000. It validates the 31 raw categorical and numerical request fields before starting the repository virtual environment Python interpreter. The bridge applies logarithmic transformations and the frozen encoders, reconstructs the 43 feature columns in their stored order, checks model metadata, and decodes probability columns using the model class identifiers. This avoids dependence on JSON key order and prevents incorrect family decoding when a classifier uses a different probability column order.
+
+**Backend inference request and response flow**
+
+| Browser / Next.js | → | POST /api/analyze | → | Express validates 31 raw fields |
+| --- | --- | --- | --- | --- |
+|  |  |  |  | ↓ |
+| Browser displays result | ← | Express returns prediction JSON | ← | Python bridge loads model and encoders; builds 43 ordered features |
 
 Successful requests return a family label, confidence percentage, threat indicator, and model identifier. Invalid requests return HTTP 400. Missing artifacts, bridge failures, invalid model outputs, and timeouts return HTTP 500 with a structured error. The frontend must treat an error envelope as a failed request; its default normal field is not a prediction. The service uses bounded request and response sizes and a per-request timeout.
 
@@ -462,7 +469,7 @@ The RF summary ranks service_freq, src_bytes, and dst_bytes highest, followed by
 
 Source: outputs/03_evaluation/shap_summary_xgb.png.
 
-The XGBoost summary also ranks service_freq first, followed by count and src_bytes. flag_S0 and host statistics contribute to the displayed ordering. Agreement on some leading fields indicates shared use of the prepared representation, not proof that a field causes an intrusion or that the models use identical decision rules. Different model-output units qualify comparisons of SHAP magnitudes.
+The XGBoost summary also ranks service_freq first, followed by count and src_bytes. flag_S0 and host statistics contribute to the displayed ordering. The dashboard handoff reports flag_S0 as the leading XGBoost feature under the model’s native feature_importances_ method; that is a different extraction method from the SHAP ranking shown here. The paper reports the SHAP plot’s service_freq ranking and does not treat the two rankings as contradictory measurements. Agreement on some leading fields indicates shared use of the prepared representation, not proof that a field causes an intrusion or that the models use identical decision rules. Different model-output units qualify comparisons of SHAP magnitudes.
 
 ### 7.2 Local U2R Explanation
 
@@ -488,7 +495,7 @@ The attention plot averages feature-selection masks across decision steps and a 
 
 ### 7.4 Interpretive Limits
 
-SHAP contributions and attention-mask averages answer different questions and are not interchangeable importance scores. Predicted-class pooling, finite samples, and selection of a high-confidence correct local example limit conclusions about rare failures. These descriptive outputs provide no causal proof, calibrated risk estimate, preprocessing ablation, or evidence that the shared U2R misses are unavoidable. These offline explanations do not establish live-route readiness for TabNet or XGBoost.
+SHAP contributions and attention-mask averages answer different questions and are not interchangeable importance scores. The sampled global summaries and one local success case do not explain the three missed U2R records; targeted local SHAP analysis on those specific rows would be needed for case-level explanations. Predicted-class pooling, finite samples, and selection of a high-confidence correct local example limit conclusions about rare failures. These descriptive outputs provide no causal proof, calibrated risk estimate, preprocessing ablation, or evidence that the shared U2R misses are unavoidable. Offline explanations do not establish live-route readiness for TabNet or XGBoost.
 
 ## 8. Discussion
 
@@ -542,29 +549,29 @@ Chen, T., & Guestrin, C. (2016). XGBoost: A scalable tree boosting system. Proce
 
 Lundberg, S. M., & Lee, S.-I. (2017). A unified approach to interpreting model predictions [Preprint]. arXiv. https://arxiv.org/abs/1705.07874
 
-Network Guardian IDS Team. (2026a). Environment and data preparation reports and reproducible artifacts [Project documentation]. docs/reports/role-1-phase-1-kit-environment-setup.md; docs/reports/role-1-phase-2-kit-data-preparation.md; notebooks/01_EDA_and_Data_Prep.ipynb; data/processed/split_indices.json; data/processed/feature_names.json.
+Network Guardian IDS Team. (2026a). Environment and data preparation reports and reproducible artifacts [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026b). Model architecture and execution specifications [Project documentation]. src/models.py; docs/contracts/role-3-rf-architecture-spec.md; docs/contracts/role-4-training-execution-spec.md; docs/contracts/role-5-training-execution-spec.md.
+Network Guardian IDS Team. (2026b). Model architecture and execution specifications [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026c). TabNet execution and artifact verification [Unpublished research record]. docs/reports/role-5-tabnet-training-verification-report.md; outputs/02_training/optuna_tabnet_trials.csv; outputs/02_training/tabnet_cv_scores.csv.
+Network Guardian IDS Team. (2026c). TabNet execution and artifact verification [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026d). Frontend scaffold and API data contract [Project documentation]. docs/reports/role-3-phase-1-amber-frontend-scaffold.md; docs/contracts/api_data_contract.md.
+Network Guardian IDS Team. (2026d). Frontend scaffold and API data contract [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026e). Role 2 documentation and setup verification [Project documentation]. docs/reports/role-2-phase-1-markie-documentation-scaffolding.md; docs/reports/discovery_log.md.
+Network Guardian IDS Team. (2026e). Role 2 documentation and setup verification [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026f). Random Forest configuration and validation statistics [Unpublished research record]. models/rf_baseline.meta.json; docs/reports/role-3-phase-2-amber-rf-baseline.md.
+Network Guardian IDS Team. (2026f). Random Forest configuration and validation statistics [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026g). Backend inference implementation and functional verification [Unpublished research record]. docs/reports/role-2-phase-2-markie-backend-bridge.md; server/server.js; server/predict_bridge.py; server/validate.js; server/tests.
+Network Guardian IDS Team. (2026g). Backend inference implementation and functional verification [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026h). Frozen test evaluation and saved prediction outputs [Research record]. docs/reports/role-5-phase-3-dwayne-evaluation-suite.md; outputs/03_evaluation/test_set_evaluation.json; outputs/03_evaluation/per_class_metrics.csv; outputs/03_evaluation/test_predictions.csv; outputs/03_evaluation/*.png.
+Network Guardian IDS Team. (2026h). Frozen test evaluation and saved prediction outputs [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026i). XGBoost execution and validation reporting [Research record]. docs/reports/role-4-phase-2-kit-xgboost-execution.md; docs/handoffs/xgboost.md; outputs/02_training/optuna_xgb_trials.csv; src/models.py.
+Network Guardian IDS Team. (2026i). XGBoost execution and validation reporting [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026j). Random Forest acceptance threshold decision [Project record]. docs/decision/decision_rf_cv_std_threshold_20261013.md.
+Network Guardian IDS Team. (2026j). Random Forest acceptance threshold decision [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026k). Frontend connection to the live backend [Project record]. docs/reports/role-3-phase-3-amber-frontend-backend-integration.md; client/src/lib/data.ts.
+Network Guardian IDS Team. (2026k). Frontend connection to the live backend [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
-Network Guardian IDS Team. (2026l). Sampled model explanations and feature attention [Research record]. docs/reports/role-5-phase-4-dwayne-explainability.md; src/explainability.py; outputs/03_evaluation/shap_summary_rf.png; shap_summary_xgb.png; shap_local_example.png; tabnet_attention_mask.png. Repository snapshot 7108f414c049ca265bdd6b305e979abcd7a5c614.
+Network Guardian IDS Team. (2026l). Sampled model explanations and feature attention [Unpublished project documentation]. Network Guardian IDS repository. https://github.com/Dustin-Martinez/network-guardian-ids
 
 Scarfone, K., & Mell, P. (2007). Guide to intrusion detection and prevention systems (IDPS) (NIST Special Publication 800-94). National Institute of Standards and Technology. https://doi.org/10.6028/NIST.SP.800-94
 
