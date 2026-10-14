@@ -7,8 +7,7 @@ problem and must be reported to Kit before proceeding.
 
 **Owner:** Kit (Role 1). Updated only by Kit.
 
-**Last updated:** Day 5 of the sprint (partial; full update after
-execution).
+**Last updated:** Day 6 of the sprint (all three models recorded).
 
 **Related documents:**
 - `docs/contracts/role-4-training-execution-spec.md` — XGBoost run
@@ -95,33 +94,33 @@ completes.
 
 | Metric | Value |
 |---|---|
-| Best trial number | <PENDING> |
-| Best CV Macro F1 (mean) | <PENDING> |
-| Best CV Macro F1 (std) | <PENDING> |
-| OOB Macro F1 | <PENDING> |
-| Wall time | <PENDING> |
+| Best trial number | 17 |
+| Best CV Macro F1 (mean) | 0.9505 |
+| Best CV Macro F1 (std) | 0.0212 |
+| OOB Macro F1 | 0.9496 |
+| Wall time | (from Amber's sprint report) |
 
 **Per-class recall on CV validation folds:**
 
 | Class | Recall |
 |---|---|
-| normal | <PENDING> |
-| dos | <PENDING> |
-| probe | <PENDING> |
-| r2l | <PENDING> |
-| u2r | <PENDING> |
+| normal | 0.9996 |
+| dos | 0.9998 |
+| probe | 0.9925 |
+| r2l | 0.9586 |
+| u2r | 0.8205 |
 
 **Best hyperparameters:**
 
 | Parameter | Value |
 |---|---|
-| `n_estimators` | <PENDING> |
-| `max_depth` | <PENDING> |
-| `min_samples_split` | <PENDING> |
-| `min_samples_leaf` | <PENDING> |
-| `max_features` | <PENDING> |
-| `criterion` | <PENDING> |
-| `class_weight` | <PENDING> |
+| `n_estimators` | 350 |
+| `max_depth` | 15 |
+| `min_samples_split` | 8 |
+| `min_samples_leaf` | 3 |
+| `max_features` | sqrt |
+| `criterion` | entropy |
+| `class_weight` | balanced |
 
 **Artifacts produced:**
 
@@ -135,40 +134,44 @@ completes.
 
 ## 4. XGBoost Reference
 
-Run performed by Kenneth (Role 4). Values recorded after the run
-completes.
+Run performed by Kit (Role 1), reassigned from Kenneth (Role 4).
+Values recorded after the run completes.
 
 | Metric | Value |
 |---|---|
-| Best trial number | <PENDING> |
-| Best CV Macro F1 (mean) | <PENDING> |
-| Best CV Macro F1 (std) | <PENDING> |
-| Wall time | <PENDING> |
+| Best trial number | 81 |
+| Best CV Macro F1 (mean) | 0.9508 |
+| Best CV Macro F1 (std) | 0.0260 |
+| Wall time | ~1 hour 55 minutes (from the XGBoost sprint report) |
 
-**Per-class recall on CV validation folds:**
+**Per-class recall on training pool (post-refit):**
 
 | Class | Recall |
 |---|---|
-| normal | <PENDING> |
-| dos | <PENDING> |
-| probe | <PENDING> |
-| r2l | <PENDING> |
-| u2r | <PENDING> |
+| normal | 0.9996 |
+| dos | 0.9999 |
+| probe | 1.0000 |
+| r2l | 1.0000 |
+| u2r | 1.0000 |
+
+Note: these are training-pool values, not generalization metrics. The
+test-set values from Notebook 03 are: U2R 0.7692, R2L 0.9920, Probe
+1.0000, DoS ~1.0000, Normal ~1.0000.
 
 **Best hyperparameters:**
 
 | Parameter | Value |
 |---|---|
-| `learning_rate` | <PENDING> |
-| `max_depth` | <PENDING> |
-| `min_child_weight` | <PENDING> |
-| `gamma` | <PENDING> |
-| `subsample` | <PENDING> |
-| `colsample_bytree` | <PENDING> |
-| `reg_alpha` | <PENDING> |
-| `reg_lambda` | <PENDING> |
-| `max_delta_step` | <PENDING> |
-| `n_estimators` | <PENDING> |
+| `learning_rate` | 0.0435 |
+| `max_depth` | 10 |
+| `min_child_weight` | 2 |
+| `gamma` | 0.0095 |
+| `subsample` | 0.8088 |
+| `colsample_bytree` | 0.7884 |
+| `reg_alpha` | 0.6338 |
+| `reg_lambda` | 7.2469 |
+| `max_delta_step` | 4 |
+| `n_estimators` | 250 |
 
 **Artifacts produced:**
 
@@ -210,40 +213,44 @@ starting benchmark.
 
 Source: `scripts/feasibility_tabnet.py`, run on Day 3.
 
-### 5.2 Full Optuna Study (to be recorded)
+### 5.2 Full Optuna Study
 
 | Metric | Value |
 |---|---|
-| Best trial number | <PENDING> |
-| Best CV Macro F1 (mean) | <PENDING> |
-| Best CV Macro F1 (std) | <PENDING> |
-| Wall time | <PENDING> |
+| Best trial number | 16 |
+| Best CV Macro F1 (mean) | 0.9212 |
+| Best CV Macro F1 (std) | 0.0193 |
+| Wall time | (from Dwayne's TabNet sprint report) |
 
-**Per-class recall on CV validation folds:**
+**Per-class recall on training pool (post-refit):**
 
 | Class | Recall |
 |---|---|
-| normal | <PENDING> |
-| dos | <PENDING> |
-| probe | <PENDING> |
-| r2l | <PENDING> |
-| u2r | <PENDING> |
+| normal | 0.9978 |
+| dos | 0.9995 |
+| probe | 0.9987 |
+| r2l | 0.9932 |
+| u2r | 1.0000 |
+
+Note: these are training-pool values, not generalization metrics. The
+test-set values from Notebook 03 are: U2R 0.7692, R2L 0.9760, Probe
+0.9987, DoS 0.9995, Normal 0.9978.
 
 **Best architecture:**
 
 | Parameter | Value |
 |---|---|
-| `n_d` | <PENDING> |
-| `n_a` | <PENDING> |
-| `n_steps` | <PENDING> |
-| `gamma` | <PENDING> |
-| `lambda_sparse` | <PENDING> |
-| `n_independent` | <PENDING> |
-| `n_shared` | <PENDING> |
-| `momentum` | <PENDING> |
-| `mask_type` | <PENDING> |
-| `batch_size` | <PENDING> |
-| `virtual_batch_size` | <PENDING> |
+| `n_d` | 24 |
+| `n_a` | 32 |
+| `n_steps` | 6 |
+| `gamma` | 1.2961 |
+| `lambda_sparse` | 7.9119e-05 |
+| `n_independent` | 2 |
+| `n_shared` | 1 |
+| `momentum` | 0.0655 |
+| `mask_type` | entmax |
+| `batch_size` | 512 |
+| `virtual_batch_size` | 256 |
 
 **Artifacts produced:**
 
@@ -262,14 +269,27 @@ Filled after all three runs complete. Populated from
 
 | Metric | Random Forest | XGBoost | TabNet |
 |---|---|---|---|
-| CV Macro F1 (mean) | <PENDING> | <PENDING> | <PENDING> |
-| CV Macro F1 (std) | <PENDING> | <PENDING> | <PENDING> |
-| U2R recall | <PENDING> | <PENDING> | <PENDING> |
-| R2L recall | <PENDING> | <PENDING> | <PENDING> |
-| Probe recall | <PENDING> | <PENDING> | <PENDING> |
-| DoS recall | <PENDING> | <PENDING> | <PENDING> |
-| Normal recall | <PENDING> | <PENDING> | <PENDING> |
-| Training time | <PENDING> | <PENDING> | <PENDING> |
+| CV Macro F1 (mean) | 0.9505 | 0.9508 | 0.9212 |
+| CV Macro F1 (std) | 0.0212 | 0.0260 | 0.0193 |
+| U2R recall | 0.8205 | 1.0000 | 1.0000 |
+| R2L recall | 0.9586 | 1.0000 | 0.9932 |
+| Probe recall | 0.9925 | 1.0000 | 0.9987 |
+| DoS recall | 0.9998 | 0.9999 | 0.9995 |
+| Normal recall | 0.9996 | 0.9996 | 0.9978 |
+| Training time | (from Amber's report) | ~1h 55m | (from Dwayne's report) |
+
+Note on comparability: Random Forest per-class recall is measured on
+CV validation folds (`per_class_recall_cv`). XGBoost and TabNet
+per-class recall is measured on the training pool after refit
+(`per_class_recall_train`). The two are not the same metric. Test-set
+per-class recall from Notebook 03 is the correct source for cross-model
+comparison:
+
+| Metric | Random Forest | XGBoost | TabNet |
+|---|---|---|---|
+| Test Macro F1 | 0.9331 | 0.9451 | 0.9306 |
+| Test U2R recall | 0.7692 | 0.7692 | 0.7692 |
+| Test R2L recall | 0.9520 | 0.9920 | 0.9760 |
 
 ---
 
@@ -281,6 +301,7 @@ hashes verified.
 
 After running a model's training cell, read the corresponding meta
 sidecar and compare against the values in sections 3, 4, or 5 above.
+
 ### 7.1 For Random Forest
 
 ```powershell
@@ -291,7 +312,7 @@ meta = json.load(open(PATHS.models / 'rf_baseline.meta.json'))
 print('CV Macro F1 :', meta['cv_mean_macro_f1'])
 print('CV std      :', meta['cv_std_macro_f1'])
 print('OOB F1      :', meta['oob_macro_f1'])
-print('Per class   :', meta['per_class_recall_train'])
+print('Per class   :', meta['per_class_recall_cv'])
 "
 ```
 
@@ -393,7 +414,8 @@ print(compute_file_sha256(PATHS.repo_root / 'src' / 'models.py'))
 | Day 3 | Feasibility test recorded (section 5.1) | Kit |
 | Day 5 | Reference environment recorded (section 1) | Kit |
 | Day 5 | Frozen artifact hashes recorded (section 8) | Kit |
-| Day 5 | Random Forest, XGBoost, and TabNet runs pending | Kit |
+| Day 6 | Random Forest, XGBoost, and TabNet reference values recorded | Kit |
+| Day 6 | Cross-model comparison filled (section 6) | Kit |
 
 ---
 
@@ -495,7 +517,7 @@ Optuna is configured at WARNING log level, so it does not print
 per-trial progress. Watch the SQLite study database instead. Its
 modification time advances after each completed trial.
 
-#### XGBoost (Kenneth)
+#### XGBoost (Kit)
 
 ```powershell
 while ($true) {
@@ -524,7 +546,7 @@ execution contract.
 
 ---
 
-### 11.4 After the Run — XGBoost Verification (Kenneth)
+### 11.4 After the Run — XGBoost Verification (Kit)
 
 ```powershell
 python -c "
@@ -592,7 +614,7 @@ print('CV Macro F1 :', meta['cv_mean_macro_f1'])
 print('CV std      :', meta['cv_std_macro_f1'])
 print('OOB Macro F1:', meta['oob_macro_f1'])
 print('Best trial  :', meta['best_trial_number'])
-print('Per class   :', meta['per_class_recall_train'])
+print('Per class   :', meta['per_class_recall_cv'])
 print()
 print('Artifacts:')
 for p in [
@@ -631,7 +653,7 @@ for name, fname in models.items():
         rows.append((name, 'MISSING', '', '', '', '', '', ''))
         continue
     m = json.load(open(p))
-    pc = m.get('per_class_recall_train', {})
+    pc = m.get('per_class_recall_train', m.get('per_class_recall_cv', {}))
     rows.append((
         name,
         f\"{m['cv_mean_macro_f1']:.4f}\",
@@ -670,7 +692,8 @@ save cell. Do not close the notebook between them.
 #### `KeyError: 'per_class_recall_train'`
 
 Your local `src/models.py` is out of date. Pull the latest from the
-Phase 3 branch and rerun the verification.
+Phase 3 branch and rerun the verification. For Random Forest, use
+`per_class_recall_cv` instead.
 
 #### `FileNotFoundError: optuna_study_xgb.db`
 
