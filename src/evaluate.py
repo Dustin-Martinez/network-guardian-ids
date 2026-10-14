@@ -459,6 +459,28 @@ def main() -> None:
             )
         )
 
+    # Export per-sample predictions and confidence scores on the frozen test set.
+    predictions_df = pd.DataFrame({"y_true": y_test})
+
+    for model_key in MODEL_CONFIGS:
+        predictions_df[f"{model_key}_prediction"] = model_predictions[model_key]
+
+    predictions_path = output_dir / "test_predictions.csv"
+    predictions_df.to_csv(predictions_path, index=False)
+
+    confidence_df = pd.DataFrame({"y_true": y_test})
+
+    for model_key in MODEL_CONFIGS:
+        probabilities = model_probabilities[model_key]
+        for idx, label in enumerate(class_order):
+            confidence_df[f"{model_key}_confidence_{label}"] = probabilities[:, idx]
+
+    confidences_path = output_dir / "test_confidences.csv"
+    confidence_df.to_csv(confidences_path, index=False)
+
+    print(f"Saved predictions: {predictions_path}")
+    print(f"Saved confidence scores: {confidences_path}")
+
     # Standard per-class table. All metrics are already proportions in [0, 1].
     metrics_df = pd.DataFrame(all_metric_rows)
     metrics_path = output_dir / "per_class_metrics.csv"
