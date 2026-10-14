@@ -1,66 +1,117 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Panel from "./Panel";
-import { CLASSES, FEATURES, MATRIX, TRAFFIC_DOS, TRAFFIC_NORMAL } from "@/lib/data";
+import {
+  CLASSES,
+  loadClassDistribution,
+  loadConfusionMatrices,
+  loadFeatureImportances,
+  MODEL_DISPLAY,
+  type ClassDistribution,
+  type ConfusionMatrixPayload,
+  type FeatureImportancePayload,
+} from "@/lib/data";
+import type { ModelName } from "@/types";
 
-function smooth(pts: [number, number][]) {
-  let d = `M${pts[0][0]},${pts[0][1]}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] ?? p2;
-    d += ` C${p1[0] + (p2[0] - p0[0]) / 6},${p1[1] + (p2[1] - p0[1]) / 6} ${p2[0] - (p3[0] - p1[0]) / 6},${p2[1] - (p3[1] - p1[1]) / 6} ${p2[0]},${p2[1]}`;
-  }
-  return d;
-}
-
+/* ---------------------------------------------------------------------
+   TrafficChart — real class distribution from split_indices.json.
+   --------------------------------------------------------------------- */
 export function TrafficChart() {
-  const X = (i: number) => 40 + i * (430 / 12);
-  const Y = (v: number) => 190 - (v / 200) * 180;
-  const line = (data: number[]) => smooth(data.map((v, i) => [X(i), Y(v)] as [number, number]));
+  const [data, setData] = useState<ClassDistribution | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadClassDistribution().then(setData).catch((e) => setError(String(e)));
+  }, []);
+
+  if (error) return <Panel title="Class distribution"><p className="text-sm text-[color:var(--threat-soft)]">{error}</p></Panel>;
+  if (!data) return <Panel title="Class distribution"><p className="text-sm text-[color:var(--muted)]">Loading…</p></Panel>;
+
+  const max = Math.max(...CLASSES.flatMap((c) => [data.train[c] ?? 0, data.test[c] ?? 0]));
+
   return (
     <Panel
-      title="Live network traffic"
+      title="Class distribution"
       right={
         <span className="flex items-center gap-4 text-xs text-[color:var(--muted)]">
-          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[color:var(--safe)]" />normal</span>
-          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[color:var(--threat)]" />dos</span>
+          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[color:var(--safe)]" />train</span>
+          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[color:var(--threat)]" />test</span>
         </span>
       }
     >
-      <svg viewBox="0 0 480 220" className="w-full" role="img" aria-label="Live network traffic, normal versus DoS">
-        {[0, 50, 100, 150, 200].map((v) => (
-          <g key={v}>
-            <line x1="40" x2="470" y1={Y(v)} y2={Y(v)} stroke="var(--line)" />
-            <text x="32" y={Y(v) + 4} textAnchor="end" fontSize="10" fill="var(--muted)">{v}</text>
-          </g>
+      <div className="space-y-3">
+        {CLASSES.map((c) => (
+          <div key={c} className="grid grid-cols-[5rem_1fr] items-center gap-3 text-sm">
+            <span className="text-right uppercase tracking-wide text-[color:var(--muted)]">{c}</span>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="h-4 flex-1 rounded-sm bg-[color:var(--line)]">
+                  <div className="h-full rounded-sm bg-[color:var(--safe)]"
+                       style={{ width: `${((data.train[c] ?? 0) / max) * 100}%`, boxShadow: "0 0 8px var(--safe)" }} />
+                </div>
+                <span className="w-16 text-right text-xs tabular-nums">{(data.train[c] ?? 0).toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-4 flex-1 rounded-sm bg-[color:var(--line)]">
+                  <div className="h-full rounded-sm bg-[color:var(--threat)]"
+                       style={{ width: `${((data.test[c] ?? 0) / max) * 100}%`, boxShadow: "0 0 8px var(--threat)" }} />
+                </div>
+                <span className="w-16 text-right text-xs tabular-nums">{(data.test[c] ?? 0).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
         ))}
-        {[0, 2, 4, 6, 8, 10, 12].map((i) => (
-          <text key={i} x={X(i)} y="208" textAnchor="middle" fontSize="10" fill="var(--muted)">{i * 20}</text>
-        ))}
-        <path d={line(TRAFFIC_DOS)} fill="none" stroke="var(--threat)" strokeWidth="2.5" style={{ filter: "drop-shadow(0 0 5px var(--threat))" }} />
-        <path d={line(TRAFFIC_NORMAL)} fill="none" stroke="var(--safe)" strokeWidth="2.5" style={{ filter: "drop-shadow(0 0 5px var(--safe))" }} />
-      </svg>
+      </div>
     </Panel>
   );
 }
 
-export function ConfusionMatrix() {
+/* ---------------------------------------------------------------------
+   ConfusionMatrix — real test-set confusion matrix for the selected model.
+   --------------------------------------------------------------------- */
+export function ConfusionMatrix({ model }: { model: ModelName }) {
+  const [payload, setPayload] = useState<ConfusionMatrixPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadConfusionMatrices().then(setPayload).catch((e) => setError(String(e)));
+  }, []);
+
+  const title = `Confusion matrix — ${MODEL_DISPLAY[model]}`;
+
+  if (error) return <Panel title={title}><p className="text-sm text-[color:var(--threat-soft)]">{error}</p></Panel>;
+  if (!payload) return <Panel title={title}><p className="text-sm text-[color:var(--muted)]">Loading…</p></Panel>;
+
+  const matrix = payload[model];
+  if (!matrix) return <Panel title={title}><p className="text-sm text-[color:var(--muted)]">No matrix for this model.</p></Panel>;
+
+  const rowSums = matrix.map((row) => row.reduce((a, b) => a + b, 0));
+
   return (
-    <Panel title="Confusion matrix">
+    <Panel title={title}>
       <div className="grid grid-cols-[auto_1fr] gap-x-3">
         <div className="grid grid-rows-5 gap-1 text-right text-xs text-[color:var(--muted)]">
           {CLASSES.map((c) => (<span key={c} className="flex items-center justify-end">{c}</span>))}
         </div>
         <div>
           <div className="grid grid-cols-5 gap-1">
-            {MATRIX.map((row, r) =>
-              row.map((v, c) => (
-                <div key={`${r}-${c}`} title={`actual ${CLASSES[r]}, predicted ${CLASSES[c]}: ${v}`}
-                  className="flex aspect-[2/1] items-center justify-center text-[10px]"
-                  style={{
-                    background: `color-mix(in srgb, ${r === c ? "var(--safe)" : "var(--threat)"} ${Math.max(v, 0.04) * 100}%, var(--bg))`,
-                    color: v > 0.5 ? "var(--bg)" : "var(--muted)",
-                  }}>
-                  {v.toFixed(2)}
-                </div>
-              ))
+            {matrix.map((row, r) =>
+              row.map((v, c) => {
+                const ratio = rowSums[r] > 0 ? v / rowSums[r] : 0;
+                const intensity = Math.max(ratio, 0.03);
+                return (
+                  <div key={`${r}-${c}`}
+                       title={`actual ${CLASSES[r]}, predicted ${CLASSES[c]}: ${v}`}
+                       className="flex aspect-[2/1] items-center justify-center text-[10px]"
+                       style={{
+                         background: `color-mix(in srgb, ${r === c ? "var(--safe)" : "var(--threat)"} ${intensity * 100}%, var(--bg))`,
+                         color: intensity > 0.5 ? "var(--bg)" : "var(--muted)",
+                       }}>
+                    {v}
+                  </div>
+                );
+              })
             )}
           </div>
           <div className="mt-2 grid grid-cols-5 gap-1 text-center text-xs text-[color:var(--muted)]">
@@ -68,20 +119,54 @@ export function ConfusionMatrix() {
           </div>
         </div>
       </div>
+      <p className="mt-3 text-xs text-[color:var(--muted)]">
+        Test-set counts. Source: <span className="text-[color:var(--safe)]">outputs/03_evaluation/test_predictions.csv</span>.
+      </p>
     </Panel>
   );
 }
 
-export function FeatureImportances() {
+/* ---------------------------------------------------------------------
+   FeatureImportances — real importances for the selected model.
+   --------------------------------------------------------------------- */
+export function FeatureImportances({ model }: { model: ModelName }) {
+  const [payload, setPayload] = useState<FeatureImportancePayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadFeatureImportances().then(setPayload).catch((e) => setError(String(e)));
+  }, []);
+
+  const title = `Top feature importances — ${MODEL_DISPLAY[model]}`;
+
+  if (error) return <Panel title={title}><p className="text-sm text-[color:var(--threat-soft)]">{error}</p></Panel>;
+  if (!payload) return <Panel title={title}><p className="text-sm text-[color:var(--muted)]">Loading…</p></Panel>;
+
+  const features = payload[model] ?? [];
+  if (features.length === 0) {
+    return (
+      <Panel title={title}>
+        <p className="text-sm text-[color:var(--muted)]">
+          Feature importance is not available for this model in the current artifact set.
+          See the SHAP summary plots in the papers Explainability section.
+        </p>
+      </Panel>
+    );
+  }
+
+  const max = Math.max(...features.map((f) => f.value));
+
   return (
-    <Panel title="Top feature importances">
+    <Panel title={title}>
       <ul className="space-y-3 text-sm">
-        {FEATURES.map((f) => (
-          <li key={f.name} className="grid grid-cols-[7rem_1fr] items-center gap-3">
+        {features.map((f) => (
+          <li key={f.name} className="grid grid-cols-[9rem_1fr_3rem] items-center gap-3">
             <span className="text-right text-[color:var(--muted)]">{f.name}</span>
             <div className="h-5 rounded-sm bg-[color:var(--line)]">
-              <div className="h-full rounded-sm bg-[color:var(--safe)]" style={{ width: `${(f.value / 300) * 100}%`, boxShadow: "0 0 10px var(--safe)" }} />
+              <div className="h-full rounded-sm bg-[color:var(--safe)]"
+                   style={{ width: `${(f.value / max) * 100}%`, boxShadow: "0 0 10px var(--safe)" }} />
             </div>
+            <span className="text-right text-xs tabular-nums">{f.value.toFixed(3)}</span>
           </li>
         ))}
       </ul>

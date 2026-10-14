@@ -177,7 +177,7 @@ The bridge loads the following files from `data/processed/`:
 | `feature_names.json` | Authoritative feature ordering after encoding |
 | `encoder_service.pkl` | Frequency encoder for the `service` column |
 | `encoder_onehot_protocol_flag.pkl` | One-hot encoder for `protocol_type` and `flag` |
-| `scaler_tabnet.pkl` | StandardScaler used only when serving the TabNet model |
+| `scaler_tabnet.pkl` | StandardScaler artifact, present but not used at inference (TabNet was trained on raw engineered features) |
 | `class_order.json` | Integer-to-class-name mapping used to decode predictions |
 
 Model binaries are loaded from `models/`:
@@ -186,7 +186,7 @@ Model binaries are loaded from `models/`:
 |---|---|
 | `rf_baseline.joblib` | Random Forest |
 | `xgb_optuna.joblib` | XGBoost |
-| `tabnet_best.pt` | PyTorch TabNet |
+| `tabnet_best.zip` | PyTorch TabNet |
 
 If any required artifact is missing, the bridge must exit with a
 non-zero status and a diagnostic message on stderr. The Express
@@ -204,11 +204,11 @@ Given a `NetworkPacketRequest`, the bridge performs these steps in order:
 5. Apply `encoder_onehot_protocol_flag.pkl` to produce the
    `protocol_type_*` and `flag_*` columns.
 6. Reorder columns to the exact ordering in `feature_names.json`.
-7. For Random Forest and XGBoost: pass the DataFrame directly to
-   `model.predict_proba`.
-8. For TabNet: apply `scaler_tabnet.pkl`, then call the model.
-9. Map the argmax index back to a class name via `class_order.json`.
-10. Emit the response JSON to stdout and exit with status 0.
+7. For Random Forest, XGBoost, and TabNet: pass the DataFrame directly
+   to `model.predict_proba`. All three models were trained on the raw
+   engineered feature matrix.
+8. Map the argmax index back to a class name via `class_order.json`.
+9. Emit the response JSON to stdout and exit with status 0.
 
 ### 4.3 Model Selection
 
@@ -267,49 +267,3 @@ No silent divergence is permitted between this file and the running
 system. If the code and the contract disagree, the contract is
 authoritative until the code is changed to match it, or the contract
 is explicitly revised by the team.
-```
-
----
-
-## What Changed and Why
-
-| Section | Previous state | New state | Reason |
-|---|---|---|---|
-| TypeScript `NetworkPacketRequest` | `protocol_type: number`, `service: number`, `flag: number` | All three are strings | Encoders fit in Phase 2 expect raw categorical values |
-| JSON request example | Fabricated integers (`"service": 24`) | Realistic raw KDD record | Removes ambiguity about what the frontend sends |
-| Response interface | 3 fields | 5 fields, added `model` | Client can display which model produced the prediction |
-| Error response | Only `error` field | Full `PredictionResponse` with defaults | Frontend can render without null checks |
-| New section 4 | None | Bridge contract — artifacts, transformation, model selection | Markie has no guesswork; the exact pipeline is documented |
-| New section 6 | None | Validation rules | Prevents malformed payloads from reaching Python |
-| New section 7 | None | Versioning policy | Prevents silent drift between contract and code |
-
----
-
-## Team Coordination Required
-
-Two follow-ups so the contract is honored:
-
-### 1. Amber — update `client/src/types/index.ts`
-
-The interface in the file must match section 2 of the contract. Amber should replace the existing `NetworkPacketRequest` with the version above. She also needs to adjust the form inputs: `protocol_type`, `service`, and `flag` become dropdowns or text inputs of strings, not integer fields.
-
-### 2. Markie — align `server/predict_bridge.py` and `server/validate.js`
-
-Markie's bridge must implement the transformation documented in section 4. If his current draft assumes pre-encoded integers, it needs revision. His validator must implement the rules in section 6.
-
-### 3. Kenneth — nothing
-
-The contract does not affect the training loop or video production.
-
----
-
-## What to Do Now
-
-1. Save the file contents above as `contracts/api_data_contract.md` (overwrite the existing version).
-2. Commit and push:
-
-```bash
-git add contracts/api_data_contract.md
-git commit -m "docs(contracts): align API contract with Phase 2 encoding scheme"
-git push
-```
