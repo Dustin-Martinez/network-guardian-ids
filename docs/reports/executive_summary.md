@@ -1,39 +1,34 @@
 # Executive Summary: Network Guardian IDS
 
 **Owner:** Markie (Role 2, Paper Lead)
-**Status:** Phase 1 draft; final model results pending.
-**Paper placement:** Section VIII; target length is one formatted page.
+**Updated:** 2026-10-14
+**Status:** Final result summary integrated; manuscript review and video recording remain pending.
+**Paper placement:** Professor Section VIII; target length is one formatted page.
 
-## 1. What problem did we set out to solve, and why does it matter?
+## 1. What problem did we set out to solve and why does it matter
 
-Network Guardian IDS studies whether machine learning can distinguish normal network connections from four attack families: denial of service (DoS), probing, remote-to-local access (R2L), and user-to-root escalation (U2R). The aim is to compare detection approaches and explain their errors, especially missed rare attacks and false alarms. This is a research prototype; effectiveness on current production traffic has not been established.
+We compare three learning methods for distinguishing normal network connections from four attack families. Missed rare attacks and false alarms matter as much as aggregate correctness.
 
-## 2. What did we discover about the data that shaped our decisions?
+## 2. What did we discover about the data that shaped our decisions
 
-Kit's data-preparation report records substantial duplication, skewed byte and duration values, and very few U2R examples. These findings motivated duplicate removal, removal of redundant features, logarithmic transformations, and a combination of categorical encodings. Local onboarding now verifies 145,584 prepared connections split into 109,188 training and 36,396 test rows, with 43 encoded features. The frozen split contains only 39 U2R training examples and 13 test examples, so rare-class recall must be interpreted carefully. (Source: `data/processed/split_indices.json`; all frozen hashes verified during onboarding.) (Source: `docs/reports/role-1-phase-2-kit-data-preparation.md`, sections 5-9.)
+The supplied file contains 494,021 records, substantial duplication, and only 52 U2R examples. Preparation retained 145,584 records, split into 109,188 training and 36,396 test rows with 43 encoded inputs.
 
-## 3. Which approaches did we compare, and how did we judge them?
+## 3. Which approaches did we compare and how did we judge them
 
-The planned comparison covers Random Forest, XGBoost, and TabNet: independently trained trees, sequentially improved trees, and an attention-based neural network. The main measure is Macro F1, which gives each class equal weight. Per-class recall, false alarms, missed attacks, training time, and prediction time will explain tradeoffs. Cross-validation uses five folds for Random Forest and XGBoost and three for TabNet; this difference must remain explicit. (Sources: the RF, XGBoost, and TabNet execution contracts under `docs/contracts/`; Kit's Phase 3 report.)
+Random Forest, XGBoost, and TabNet were evaluated on the same frozen test set. Macro F1 gives each class equal weight. Test scores were 0.933095, 0.945134, and 0.930622, respectively; class recall and measured prediction times describe additional tradeoffs.
 
-## 4. What do we recommend, and what evidence supports it?
+## 4. What do we recommend and what evidence supports it
 
-**Pending evaluation.** No winning model or deployment recommendation is established in this draft. The final recommendation will combine cross-validation results, held-out test metrics, rare-class recall, runtime, and explanation quality. Insert the selected model and measured tradeoffs from `outputs/02_training/model_comparison.csv`, `outputs/03_evaluation/test_set_evaluation.json`, and `outputs/03_evaluation/per_class_metrics.csv` after Dwayne delivers evaluation outputs. Keep validation-based selection distinct from held-out test reporting.
+XGBoost is the preferred candidate for this benchmark. It had the highest test Macro F1, R2L recall of 0.992000, and the shortest recorded full-test prediction time of 0.126 seconds. All models detected the same 10 of 13 U2R cases; the sampled explanation figures describe selected model behavior but do not explain the three missed cases. Deployment readiness requires further checks.
 
-## 5. What are the limitations of our work, and what would we do next?
+## 5. What are the limitations of our work and what would we do next
 
-The historical benchmark does not establish performance on today's networks. Few rare-class examples limit the stability of recall estimates. Different validation fold counts and CPU training budgets also limit comparison. Future work should validate on newer traffic, measure inference cost, and test the value of preparation steps through controlled experiments. Live packet capture and production deployment remain future work.
+The historical simulated benchmark, only 13 U2R test records, preprocessing outside individual validation folds, and unequal optimization budgets limit generalization. Comparable training metrics and complete runtime provenance remain pending. The SHAP summaries and TabNet attention plot use samples of 1,000 test records; the local SHAP plot shows one selected, correctly classified U2R case. Future work should explain missed cases, use newer traffic, fit preprocessing within folds, and conduct controlled ablations.
 
-## 6. What was our biggest mistake or surprise, and what did we learn from it?
+## 6. What was our biggest mistake or surprise and what did we learn from it
 
-One documented early mistake was setting up pinned dependencies with Python 3.13. Kit reports that pandas installation failed and that recreating the environment on Python 3.11.9 resolved it. This shows why dependency compatibility should be verified before model work. The team will select its final biggest lesson after reviewing all execution reports. (Source: `docs/reports/role-1-phase-1-kit-environment-setup.md`, section 6.)
+A duplicate notebook export replaced the corrected label format; the fixed notebook now passes verification. Later auditing distinguished cumulative fold means and trial dispersion from independent fold scores. The lesson is to verify both artifact contents and metric definitions.
 
-## Editorial completion checklist
+## Sources and remaining checks
 
-- [ ] Replace pending results with values checked against delivered artifacts.
-- [x] Verify prepared counts and class shares against the frozen split manifest.
-- [ ] Reconcile benchmark provenance before final submission; the narrative context mixes KDD Cup 1999 and KDDTrain+ terminology.
-- [ ] Convert working source pointers into APA citations and include full references in paper Section X.
-- [ ] Reconcile the recommendation with evaluation and runtime evidence.
-- [ ] Fit the six answers within one formatted page; omit this checklist from the submitted summary.
-- [ ] Disclose AI assistance in the paper's AI Tool Disclosure subsection.
+Test metrics and class support: `outputs/03_evaluation/test_set_evaluation.json`; timing: `docs/reports/role-5-phase-3-dwayne-evaluation-suite.md`; row-level errors: `outputs/03_evaluation/test_predictions.csv`; explanation methods and snapshot: Dwayne's PR #22, merged to main at commit `7108f414c049ca265bdd6b305e979abcd7a5c614`. The integrated bridge and dashboard are documented in the merged handoffs. The paper distinguishes trial-value dispersion from fold SD and CV-versus-test differences from training gaps. Kit's review of PR #25 and the final recording remain pending. Research limitations include unavailable comparable full-training metrics, provisional normalized-metrics schema, and incomplete receiving-device verification for every model route.
