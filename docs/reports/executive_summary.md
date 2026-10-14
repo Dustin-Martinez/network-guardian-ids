@@ -2,7 +2,7 @@
 
 **Owner:** Markie (Role 2, Paper Lead)
 **Updated:** 2026-10-14
-**Status:** Held-out results and sampled explanation figures integrated; team review and final submission details pending.
+**Status:** Final result summary integrated; manuscript review and video recording remain pending.
 **Paper placement:** Professor Section VIII; target length is one formatted page.
 
 ## 1. What problem did we set out to solve and why does it matter
@@ -31,4 +31,4 @@ A duplicate notebook export replaced the corrected label format; the fixed noteb
 
 ## Sources and remaining checks
 
-Test metrics and class support: `outputs/03_evaluation/test_set_evaluation.json`; timing: `docs/reports/role-5-phase-3-dwayne-evaluation-suite.md`; row-level errors: `outputs/03_evaluation/test_predictions.csv`; explanation methods and snapshot: Dwayne's PR #22, merged to main at commit `7108f414c049ca265bdd6b305e979abcd7a5c614`. The updated API contract and bridge now pass raw engineered features to TabNet as used in training, while real TabNet artifact verification remains pending. The paper distinguishes trial-value dispersion from fold SD and CV-versus-test differences from training gaps. Owner review, full-training comparisons, normalized-metrics schema confirmation, and real cross-model API verification remain open.
+Test metrics and class support: `outputs/03_evaluation/test_set_evaluation.json`; timing: `docs/reports/role-5-phase-3-dwayne-evaluation-suite.md`; row-level errors: `outputs/03_evaluation/test_predictions.csv`; explanation methods and snapshot: Dwayne's PR #22, merged to main at commit `7108f414c049ca265bdd6b305e979abcd7a5c614`. The integrated bridge and dashboard are documented in the merged handoffs. The paper distinguishes trial-value dispersion from fold SD and CV-versus-test differences from training gaps. Kit's review of PR #25 and the final recording remain pending. Research limitations include unavailable comparable full-training metrics, provisional normalized-metrics schema, and incomplete receiving-device verification for every model route.

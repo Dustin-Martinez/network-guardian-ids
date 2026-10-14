@@ -14,7 +14,7 @@
 | 1:15-2:30 | Amber | Random Forest and SOC dashboard | RF test metrics and confusion matrix; prepared dashboard demonstration |
 | 2:30-3:40 | Kenneth | XGBoost execution and runtime tradeoffs | XGBoost execution report and metadata |
 | 3:40-5:10 | Dwayne | TabNet, evaluation, explainability | Confusion matrices, per-class metrics, sampled SHAP and attention figures |
-| 5:10-6:40 | Markie | Paper walkthrough and backend | Paper section map; summary; API contract; backend demo after Phase 2 |
+| 5:10-6:40 | Markie | Paper walkthrough and backend | Paper section map; final summary; API contract; verified backend demonstration |
 | 6:40-7:00 | Kit Dustin | Conclusion and handoff | Verified recommendation and limitations slide |
 
 Each window includes transitions. Rehearse the actual spoken script with screen changes; the timing table is a budget, not a measured recording duration. Shorten repeated model definitions before cutting rare-class error analysis.
@@ -59,11 +59,11 @@ XGBoost correctly classified 248 of 250 R2L cases; Random Forest classified 238 
 
 “Our Professor paper follows the required sections I–X, and the Portfolio version expands the same experiments into an academic manuscript. We now have test results for all three models. XGBoost had the highest Macro F1 at 0.945134 and correctly identified 248 of 250 R2L cases. All three models correctly identified 10 of 13 U2R cases and missed the same three. We recommend XGBoost as the preferred candidate for this benchmark, while retaining the limits of rare-class support and historical data.
 
-The Express backend validates 31 raw connection fields, and the Python bridge reconstructs the frozen 43-feature vector. Thirteen functional checks and a real RF API request passed. The dashboard now shows real static evaluation data, and its Analyze form uses the live endpoint. The merged bridge passes raw engineered features to TabNet to match its training input; a real TabNet API request and receiving-device XGBoost verification still need to be demonstrated.
+The backend and dashboard integration are complete in the project handoff. The Express route validates 31 raw connection fields, and the Python bridge reconstructs the frozen 43-feature vector. The recorded verification includes 13 functional checks and a real Random Forest API request. The dashboard displays exported evaluation data, and its Analyze form uses the live endpoint. The paper reports remaining model-specific inference checks separately from the completed backend integration.
 
 Our paper separates validation objectives, test results, and available training metrics. Sampled SHAP summaries, one local success case, and a TabNet attention plot are integrated. The figures do not explain the shared U2R misses, and each member still supplies their own reflection.”
 
-**Before recording:** Demonstrate one validated RF request using `server/examples/normal-smtp.json`, the running backend, and the actual response. Cite the test metrics and prediction exports; the sampled SHAP and attention figures are available in `outputs/03_evaluation/`; attribute them to Dwayne’s PR #22 source, now merged to main and explain their sampling limits. Treat recorded batch prediction timings separately from HTTP latency. Do not describe all live model routes as verified.
+**Before recording:** Rehearse a validated RF request using `server/examples/normal-smtp.json`, the running backend, and its actual response. Cite the test metrics and prediction exports; the sampled SHAP and attention figures are available in `outputs/03_evaluation/`; attribute them to Dwayne’s PR #22 source, now merged to main, and explain their sampling limits. Treat recorded batch prediction timings separately from HTTP latency. Do not imply that an offline metric verifies every model's live route.
 
 ### Kit Dustin: conclusion
 

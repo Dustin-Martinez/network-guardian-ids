@@ -1,7 +1,7 @@
 # Team Discovery Log: Network Guardian IDS
 
 **Maintainer:** Markie (Role 2); Kit reviews paper Section VII.
-**Status:** Updated through the latest main snapshot e250700 and open Phase 5 handoff review on 2026-10-14; remaining evidence gaps are explicit.
+**Status:** Updated for final paper integration and Phase 4 documentation on 2026-10-14; remaining evidence gaps and review ownership are explicit.
 
 ## 1. Recording conventions
 
@@ -92,23 +92,23 @@ Use `Reported resolved`, `Locally verified`, `Open`, or `Pending evidence` as st
 - **Status:** [Reported resolved / Locally verified / Open / Pending evidence]
 - **Source:** [Exact repository path and section/field]
 
-## 4. Pending contributions
+## 4. Review queue and outstanding evidence
 
-| Contributor | Needed evidence | Paper use |
+| Owner | Review or evidence still needed | Paper use |
 |---|---|---|
-| Kit | Review paper attribution and confirm final model-method and source details | II, III, VII |
-| Amber | Confirm RF source details and dashboard/backend behavior | III.1, VII |
-| Kenneth | Confirm XGBoost runtime, hardware, and execution history | III.2, VII |
-| Dwayne | Review TabNet, evaluation, and Phase 4 explanation interpretations; explain missed U2R cases if evidence is available | III.3, V-VII |
-| Markie | Complete paper integration, final synthesis, and backend evidence notes | VII, VIII |
+| Kit | Review and approve final manuscript PR #25; confirm remaining method and attribution details | II, III, VII, IX |
+| Amber | Confirm RF source attribution and dashboard statements during manuscript review | III.1, VII, IX |
+| Kenneth | Confirm XGBoost execution/runtime attribution and his reflection | III.2, VII, IX |
+| Dwayne | Confirm TabNet, evaluation, and explainability interpretation and his reflection | III.3, V-VII, IX |
+| Markie | Final manuscript integration and evidence audit completed; video walkthrough is prepared, recording/presentation remains to be delivered | VIII, IX, video |
 
 ## 5. Finalization checklist
 
-- [ ] Attach traceable evidence for each new record.
-- [ ] Replace placeholders only after the owning member supplies evidence.
-- [ ] Have contributors verify attribution and conclusions.
-- [ ] Integrate records into Section VII without inventing chronology.
-- [ ] Cite external sources in APA and disclose AI assistance in Section X.
+- [x] Attach traceable evidence for each integrated discovery record.
+- [x] Replace empirical-result placeholders with source-verified results.
+- [ ] Have contributors verify attribution and conclusions; Kit's final manuscript review is pending.
+- [x] Integrate records into Section VII without inventing chronology.
+- [x] Cite external sources in APA and disclose AI assistance in Section X.
 
 ## 6. Evaluation integration discoveries on 2026-10-14
 
