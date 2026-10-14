@@ -1,8 +1,8 @@
-# Role 2 Phase 3 Report: Test Results and Explainability Integration
+# Role 2 Paper Integration Report: Final Manuscripts and Evidence
 
 **Owner:** Markie
 **Updated:** 2026-10-14
-**Status:** Draft integrated; awaiting team review and remaining owner confirmations.
+**Status:** Final Professor and Portfolio manuscripts prepared; awaiting Kit review before submission.
 **Branch:** `feature/role-2-paper-results`
 **Paper baseline:** main commit `e250700` (includes merged Phase 4 and UI integration).
 **Explainability source:** Dwayne's PR #22, merged to main; source commit `7108f414c049ca265bdd6b305e979abcd7a5c614`.
@@ -11,8 +11,8 @@
 
 | Format | Manuscript text | Editable Word manuscript | Pages |
 |---|---|---|---:|
-| Professor, primary graded deliverable | `docs/reports/paper.md` | `docs/reports/paper-draft.docx` | 35 |
-| Portfolio, supplemental academic deliverable | `docs/reports/paper-portfolio.md` | `docs/reports/paper-portfolio-draft.docx` | 33 |
+| Professor, primary graded deliverable | `docs/reports/paper.md` | `docs/reports/paper-final.docx` | 39 |
+| Portfolio, supplemental academic deliverable | `docs/reports/paper-portfolio.md` | `docs/reports/paper-portfolio-final.docx` | 33 |
 
 The papers use Times New Roman 11 pt, one-inch margins, page numbers, and paragraph indents. The Professor version uses 1.5 line spacing; Portfolio is one column with 1.15 spacing. The Professor Executive Summary is a one-page, six-question section. The Portfolio abstract is exactly 250 words. The editable Word and Markdown versions were synchronized from the same manuscript content.
 
@@ -38,11 +38,11 @@ Held-out test Macro F1 is RF 0.933095, XGBoost 0.945134, and TabNet 0.930622. XG
 
 All 36,396 exported prediction rows reproduce the JSON per-class F1, Macro F1, and accuracy. The weighted F1 values match the report. Trial-log calculations reproduce the XGBoost and TabNet metadata SD fields. Reconstructed attack-as-normal counts are RF 22, XGBoost 10, TabNet 16; normal-as-attack counts are RF 13, XGBoost 21, TabNet 68. These are audits of supplied outputs, not fresh model evaluations.
 
-The two Word files passed checks for 11-point Times New Roman body text, one-inch margins, bottom-center page numbers, paragraph indents, heading structure, the 41-feature dictionary, required tables, abstract length, and 11 figures each. Microsoft Word PDF export produced 35 Professor pages and 33 Portfolio pages; rendered pages were reviewed after the explanation figures were added. Relative figure links in Markdown point to files in `outputs/03_evaluation/`.
+The two Word files passed checks for 11-point Times New Roman body text, one-inch margins, bottom-center page numbers, paragraph indents, heading structure, the 41-feature dictionary, required tables, abstract length, and 11 figures each. The Professor paper contains five 400–700-word reflections based on role records, with the XGBoost reassignment attributed accurately; the AI disclosure identifies these as AI-assisted drafts for author validation. Microsoft Word PDF export produced 39 Professor pages and 33 Portfolio pages; every rendered page was visually reviewed. Relative figure links in Markdown point to files in `outputs/03_evaluation/`.
 
 ## Remaining work
 
-The draft needs contributor review of source attribution, interpretations, and final paper wording. Full author, affiliation, professor, and contact details and personal reflections still need confirmation. Evidence questions remain for independent fold reporting, comparable full-training metrics, complete runtime provenance, normalized-schema confirmation, and cross-device deployment. Kit's final review and contributor confirmation are pending. Dwayne's open PR #24 contains parallel Phase 5 draft material for review; this branch has already integrated verified test and explainability evidence.
+Kit’s final review is required before submission. AI-assisted individual reflections are evidence-based drafts and should be checked by each named author for personal accuracy. Reported study limitations remain: comparable full-training metrics, independent fold reporting for XGBoost and TabNet, complete runtime provenance, normalized-metrics schema confirmation, and receiving-device inference verification for XGBoost and TabNet. Dwayne’s open PR #24 still labels its handoff material as pending final figure and metric verification; this manuscript independently verifies the published test metrics and row-level U2R misses against the committed artifacts.
 
 ## Sources
 

@@ -5,19 +5,18 @@ CCINSYSL
 
 Submitted by
 
-Kit Dustin [Complete surname first name and middle initial]
+Martinez, Kit Dustin P.
 
-Markie [Complete surname first name and middle initial]
+Mojica, Markie Angelo S.
 
-Amber [Complete surname first name and middle initial]
+Udaundo, Bryce Amber B.
 
-Kenneth [Complete surname first name and middle initial]
+Pascua, Kenneth R.
 
-Dwayne [Complete surname first name and middle initial]
+Aguirre, Dwyane Derrick A.
 
 Submitted to
-[Professor full name]
-Professor
+Professor Edward Matthew T. Sanmocte
 
 OCTOBER 2026
 
@@ -39,7 +38,7 @@ Class imbalance is central to the research problem. The prepared training partit
 
 The primary objective is to compare Random Forest, XGBoost, and TabNet using a shared prepared representation and a frozen training and test partition. The study asks how the three approaches differ in overall classification quality, detection of rare attack families, computational requirements, and the explanations available to an analyst. A second objective is to document the preparation decisions and execution difficulties that affect reproducibility.
 
-The comparison is designed around one prepared pipeline. It does not isolate the causal contribution of each transformation because no preprocessing ablation is currently included. Any claim that a particular transformation improves detection will require a separate controlled experiment. Final model recommendations will be based on confirmed training and evaluation artifacts rather than anticipated rankings.
+The comparison is designed around one prepared pipeline. It does not isolate the causal contribution of each transformation because no preprocessing ablation is currently included. Any claim that a particular transformation improves detection will require a separate controlled experiment. On the frozen test set, XGBoost achieved the highest Macro F1 (0.945134), while all three models tied on U2R recall (0.769231); the benchmark recommendation therefore reflects aggregate results and remains subject to rare-class, false-alarm, validation, and deployment limitations.
 
 ### 1.4 System scope
 
@@ -511,27 +510,65 @@ A duplicate notebook export replaced the corrected label format; the fixed noteb
 
 ## IX. Reflection
 
-Individual reflections will address learning about intrusion detection, data preparation, model comparison, encountered challenges, responses to unexpected results, evaluation beyond accuracy, real-world applicability, and possible improvements. Each reflection must represent the corresponding author's own experience.
+### Martinez, Kit Dustin P.
 
-### Kit Dustin
+This project taught me that an intrusion detector must be judged by what it catches in each class, not by a high accuracy number alone. The KDD Cup file began with 494,021 records, but removing repeated feature vectors left 145,584. That changed the class balance substantially, and the prepared data contained only 52 U2R examples. After the frozen split, the test set had just 13 U2R cases. Those counts explain why a single missed case changes the measured recall so sharply and why rare-class results need to be reported with their support.
 
-[Individual reflection to be provided by the corresponding author.]
+The preparation work also showed me how choices made before modeling shape every comparison. The team removed constant and highly correlated fields, transformed skewed traffic values, encoded categorical features, and preserved a fixed feature order. Some feature selection and encoder fitting happened before individual cross-validation folds were formed. The test set was kept out of fitting, but the validation process still reflects preprocessing learned from the full training pool. I now understand why a clean split does not automatically make every validation estimate fully isolated.
 
-### Markie
+Comparing Random Forest, XGBoost, and TabNet made the tradeoffs concrete. XGBoost achieved the highest test Macro F1 at 0.945134 and the strongest R2L recall, while all three models identified 10 of 13 U2R records. Random Forest had fewer normal records incorrectly raised as attacks, and TabNet required more time for full-test prediction. XGBoost was the strongest benchmark candidate, but the results do not prove that it is best for every security operation. The models had unequal search histories and validation folds, and no significance test or deployment cost model was performed.
 
-[Individual reflection to be provided by the corresponding author.]
+One challenge was reconciling summary metrics with row-level errors and run metadata. Equal U2R recall alone could not show whether the models missed the same records. Comparing exported predictions established that they shared three missed rows, while XGBoost assigned one of those records to R2L and the other models called all three normal. We also distinguished trial-level dispersion from fold-level variability rather than presenting them as the same statistic. These checks changed the interpretation from a simple ranking into a qualified comparison.
 
-### Amber
+For real cybersecurity use, a model should support an analyst who must decide what to inspect, not replace that judgment. A missed intrusion and a false alarm have different costs, and confidence values require calibration before they can guide response. If I had more time, I would collect newer representative traffic, increase rare-attack support, fit every preprocessing step inside each validation fold, and compare models under the same search budget. I would also test operating thresholds with security practitioners and verify inference on the receiving device. The most useful lesson is that reproducible evidence includes the data path, errors, and limitations as well as the final score.
 
-[Individual reflection to be provided by the corresponding author.]
+### Mojica, Markie Angelo S.
 
-### Kenneth
+My work on Network Guardian connected documentation with the behavior of a working inference service. I learned that an intrusion detection result depends on more than the classifier: the incoming fields, categorical encoders, 43-feature ordering, model-specific preprocessing, response schema, and dashboard all have to agree. The TabNet investigation made this especially clear. Its training path used raw engineered features, so applying the saved scaler in the bridge would have changed the representation. The bridge was updated to pass the same representation used during training, while a real TabNet API request on the receiving device remains unverified.
 
-[Individual reflection to be provided by the corresponding author.]
+The data work also changed how I explain the study. Deduplication reduced 494,021 raw records to 145,584, and only 52 prepared records belonged to U2R. In the frozen test set, that class had 13 examples. Such limited support means that the result for a rare attack can move substantially when only one record changes. The paper therefore reports class-level recall and error counts with the aggregate Macro F1, instead of treating accuracy as a complete measure of security performance.
 
-### Dwayne
+Integrating the three approaches showed why one headline score cannot settle model choice. XGBoost led the test comparison with Macro F1 of 0.945134 and R2L recall of 0.992000. Random Forest had fewer normal-as-attack errors, while all three models detected 10 of 13 U2R records and missed the same three exported rows. TabNet's full-test prediction time was longer in the recorded run. These observations support a benchmark recommendation, not a claim that one model is ready for every network or deployment.
 
-[Individual reflection to be provided by the corresponding author.]
+The most difficult part of paper integration was keeping claims aligned with evidence as code, reports, and handoffs changed. A draft handoff could suggest an interpretation that still needed verification against figures and CSV files. I checked saved predictions before describing common misses, kept training and test results distinct, and stated when a real API path had not been tested. I also learned to treat screenshots and dashboards carefully: the existence of a UI is not proof that every model route is live, and an error response must not be mistaken for a normal prediction.
+
+Machine learning can help analysts prioritize connection records, but a real security workflow also needs calibrated scores, audit trails, human review, and a response policy. If given more time, I would validate on newer traffic, move data-dependent feature selection and encoding inside cross-validation, test model routes on the actual receiving machine, and evaluate alert thresholds with analysts. I would also add tests that compare the bridge's reconstructed feature vector directly with the training schema. This project taught me that clear documentation is part of system reliability: it makes assumptions, evidence, and unresolved checks visible to the next person.
+
+### Udaundo, Bryce Amber B.
+
+Building and evaluating the Random Forest side of Network Guardian showed me that model performance has to be understood at the class level. The prepared dataset retained 145,584 records after duplicate removal, but only 52 were U2R examples, and the frozen test partition contained 13. A model can therefore appear excellent on the abundant normal and DoS records while still making consequential mistakes on a rare attack family. Macro F1 and per-class recall made those differences easier to see than accuracy alone.
+
+The comparison also helped me understand what an ensemble result does and does not say. Random Forest reached test Macro F1 of 0.933095 and U2R recall of 0.769231. It correctly identified 10 of the 13 U2R cases and produced fewer normal-as-attack errors than the other evaluated models. XGBoost had the highest overall Macro F1 and R2L recall, while TabNet's test score was slightly below Random Forest's. These are complementary tradeoffs; they do not establish that Random Forest is universally safer or that the benchmark winner will generalize to current traffic.
+
+A practical challenge was connecting the model and dashboard without confusing an interface demonstration with a complete deployment test. The project disabled the frontend mock switch and tested the RF route with a real request, but the XGBoost and TabNet routes still need receiving-device verification. That distinction matters because a model can be evaluated offline while its service path still has problems with input order, encodings, artifacts, or runtime dependencies. Recording exactly which route was exercised makes the system status useful to the team.
+
+I also learned to respond to discrepancies by returning to the saved evidence. Aggregate metrics do not identify which records were missed, so the exported predictions were compared row by row. That confirmed three shared U2R misses across the models. The result is a reason to inspect those cases and obtain more rare-class examples, not proof that the features cannot distinguish U2R. Similarly, fewer false alarms must be read from confusion-matrix entries and precision, rather than inferred from recall.
+
+In a real security operations center, a classifier should help prioritize investigation while preserving analyst control. False alarms consume time; missed intrusions leave risk unaddressed. Confidence should be calibrated before it drives actions, and explanations should be treated as supporting evidence rather than causal proof. With more time, I would test Random Forest on newer and more diverse network traffic, evaluate thresholds against a stated false-positive budget, and run the full API path on another machine. I would also compare repeated splits and ensure preprocessing is fitted within each validation fold. This project taught me to treat reproducibility and deployment checks as part of the model, not as paperwork after modeling.
+
+### Pascua, Kenneth R.
+
+My reflection is shaped by the documented change in task ownership during the sprint. XGBoost was initially assigned to my role, but its execution was reassigned to Kit when I became unavailable. I should not present the resulting training run as work that I personally performed. I can still learn from the execution report and from the team's comparison, while being clear about what the project record attributes to another contributor.
+
+The data evidence shows why intrusion detection cannot be evaluated with accuracy alone. The raw KDD Cup file contained 494,021 records, and deduplication retained 145,584. Only 52 prepared records were U2R, with 13 in the frozen test set. A small number of examples makes a rare-class estimate sensitive to individual errors. Reporting Macro F1, class recall, support counts, and confusion-matrix results provides a fuller view of whether a model recognizes attacks as well as common normal connections.
+
+The three model results also demonstrate that different methods can lead on different measures. XGBoost recorded the highest test Macro F1 at 0.945134 and an R2L recall of 0.992000. Random Forest had fewer normal-as-attack errors, while all three models correctly classified 10 of 13 U2R records. Row-level prediction exports showed that the same three U2R examples were missed, although XGBoost assigned one of them to R2L and the other models assigned all three to normal. The comparison supports a benchmark candidate, not an unrestricted claim of operational superiority.
+
+One challenge in a collaborative project is preserving clear ownership and traceability when a task changes hands. The reassignment record and saved XGBoost artifacts make the execution history understandable. Reading those records also highlighted technical limits: configured trial budgets are not completed trial counts, trial dispersion is not fold variability, and a validation-to-test difference is not by itself proof that a model did or did not overfit. Those distinctions should remain visible in the paper.
+
+For real cybersecurity, a classifier can help order alerts for human review, but it cannot determine risk without an operational context. False alarms, missed attacks, calibration, and traffic drift all matter. If I had more time on this project, I would complete the assigned work or communicate the handoff earlier, then help test reproducibility on a second machine. The team could also use newer traffic, more rare-attack examples, fold-specific preprocessing, and an equal search budget. My main lesson is that responsible contribution includes accurate attribution: the final paper should report what the evidence shows and who produced it, without implying that a reassigned run was mine.
+
+### Aguirre, Dwyane Derrick A.
+
+Working on evaluation and explainability taught me that a result is useful only when its source and limits are clear. The prepared dataset contained 145,584 records, but just 52 were U2R, and the held-out test set contained 13 U2R examples. Because one record changes the observed recall by about 7.69 percentage points, I learned to report support beside the score and avoid broad claims about rare-attack performance from a single small test sample.
+
+Comparing Random Forest, XGBoost, and TabNet reinforced the value of several metrics. XGBoost achieved the highest test Macro F1 at 0.945134 and R2L recall of 0.992000. Random Forest reached Macro F1 of 0.933095 and had fewer normal-as-attack errors; TabNet reached 0.930622. All three models correctly identified 10 of 13 U2R examples. Comparing exported predictions, rather than relying on equal recall alone, showed that the same three rows were missed. That is a specific observation about this test set, not proof of a fixed ceiling or an intrinsic limit of the features.
+
+The explainability work showed me that different explanation methods answer different questions. The SHAP summaries describe feature contributions for sampled test records, while TabNet attention masks show how its internal feature-selection mechanism allocated attention across decision steps. Neither method establishes that a feature caused an attack. The local SHAP waterfall describes one correctly classified U2R example selected from the saved predictions; it cannot explain the three shared misses or represent every U2R connection. Sampling and the plotted class output must be disclosed when interpreting these visuals.
+
+A major challenge was translating technical artifacts into careful paper language. Draft handoff material was explicitly marked as awaiting verification, so I treated the JSON, per-class CSV files, confusion matrices, prediction exports, and actual figures as the evidence to check. Row-level comparison clarified the shared misses, and inspecting the plots helped prevent unsupported claims about feature rankings. I also learned to distinguish recorded full-test batch prediction time from API latency and to keep trial-level Optuna dispersion separate from fold-level variability.
+
+In a real security workflow, evaluation should reflect the cost of missed threats and analyst time spent on false alarms. A model's confidence should be calibrated, explanations should support investigation rather than dictate it, and performance should be monitored as traffic changes. With more time, I would add newer data, more examples of rare attacks, threshold analysis under explicit operational costs, and repeated independent evaluation. I would also inspect the missed U2R records directly and verify all model inference routes on the receiving device. The project taught me that honest uncertainty is part of a strong results section, not a weakness in it.
 
 ## X. References
 
@@ -575,4 +612,4 @@ UCI KDD Archive. (1999). KDD Cup 1999 data. https://kdd.ics.uci.edu/databases/kd
 
 ### AI Tool Disclosure
 
-OpenAI Codex was used to assist with environment setup, source review, manuscript drafting and formatting, preparation-artifact verification, and backend implementation and functional testing. ChatGPT was also used for troubleshooting and interpretation of execution errors. AI-generated assistance was not used to invent missing measurements or personal reflections. The authors remain responsible for validating the evidence, interpreting the results, and reviewing the final manuscript.
+OpenAI Codex assisted with environment setup, source review, manuscript drafting and formatting, preparation-artifact verification, and backend implementation and functional testing. ChatGPT was also used for troubleshooting and interpretation of execution errors. AI-assisted reflection drafts were prepared from the project records; each author is responsible for checking that their reflection accurately represents their own experience. No missing measurements were invented.

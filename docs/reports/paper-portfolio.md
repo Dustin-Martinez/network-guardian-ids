@@ -1,10 +1,10 @@
 # Network Guardian IDS — A Comparative Study of Bagging, Boosting, and Deep Attention Architectures for Multi-Class Network Intrusion Detection
 
-Kit Dustin, Markie, Amber, Kenneth, and Dwayne
+Martinez, Kit Dustin P.; Mojica, Markie Angelo S.; Udaundo, Bryce Amber B.; Pascua, Kenneth R.; and Aguirre, Dwyane Derrick A.
 
-[Full author names and institutional affiliations to be completed]
+National University, Philippines — CCINSYSL Project Team
 
-Corresponding author: [Full name and email to be completed]
+Corresponding author: Markie Angelo S. Mojica, markiemojica0@gmail.com
 
 OCTOBER 2026
 
@@ -44,7 +44,7 @@ The research problem is to assign a connection to normal, DoS, probe, R2L, or U2
 
 The primary objective is to compare Random Forest, XGBoost, and TabNet using a shared prepared representation and a frozen training and test partition. The study asks how the three approaches differ in overall classification quality, detection of rare attack families, computational requirements, and the explanations available to an analyst. A second objective is to document the preparation decisions and execution difficulties that affect reproducibility.
 
-The comparison is designed around one prepared pipeline. It does not isolate the causal contribution of each transformation because no preprocessing ablation is currently included. Any claim that a particular transformation improves detection will require a separate controlled experiment. Final model recommendations will be based on confirmed training and evaluation artifacts rather than anticipated rankings.
+The comparison is designed around one prepared pipeline. It does not isolate the causal contribution of each transformation because no preprocessing ablation is currently included. Any claim that a particular transformation improves detection will require a separate controlled experiment. On the frozen test set, XGBoost achieved the highest Macro F1 (0.945134), while all three models tied on U2R recall (0.769231); the benchmark recommendation therefore reflects aggregate results and remains subject to rare-class, false-alarm, validation, and deployment limitations.
 
 ### 1.4 Contributions
 
@@ -52,7 +52,7 @@ The study contributes a comparison of three learning families on a frozen test p
 
 ### 1.5 Paper Organization
 
-Section 2 establishes the background and related work. Section 3 describes the data and preparation, followed by methodology in Section 4 and experimental conditions in Section 5. Section 6 separates available results from pending measurements. Section 7 defines the explainability analysis, Section 8 discusses interpretation and validity, and Section 9 presents conclusions and future work. The appendices retain configuration tables, evaluation inventory, and reproducibility instructions.
+Section 2 establishes the background and related work. Section 3 describes the data and preparation, followed by methodology in Section 4 and experimental conditions in Section 5. Section 6 reports the completed frozen-test comparison and distinguishes it from unavailable comparable training metrics and pending deployment checks. Section 7 defines the explainability analysis, Section 8 discusses interpretation and validity, and Section 9 presents conclusions and future work. The appendices retain configuration tables, evaluation inventory, and reproducibility instructions.
 
 ## 2. Background and Related Work
 
@@ -524,7 +524,7 @@ Future work should explain missed attacks, correct independent-fold reporting, r
 
 ## Acknowledgments
 
-The authors acknowledge the maintainers of the KDD Cup 1999 benchmark and the open-source software used to implement the study. Individual funding, institutional support, and contributor details will be included only after confirmation.
+The authors thank the maintainers of the KDD Cup 1999 benchmark and contributors to the open-source software used in this study.
 
 ## References
 
@@ -572,7 +572,7 @@ UCI KDD Archive. (1999). KDD Cup 1999 data. https://kdd.ics.uci.edu/databases/kd
 
 ### AI Tool Disclosure
 
-OpenAI Codex was used to assist with environment setup, source review, manuscript drafting and formatting, preparation-artifact verification, and backend implementation and functional testing. ChatGPT was also used for troubleshooting and interpretation of execution errors. AI-generated assistance was not used to invent missing measurements or personal reflections. The authors remain responsible for validating the evidence, interpreting the results, and reviewing the final manuscript.
+OpenAI Codex assisted with environment setup, source review, manuscript drafting and formatting, preparation-artifact verification, and backend implementation and functional testing. ChatGPT was also used for troubleshooting and interpretation of execution errors. The companion Professor-format manuscript includes evidence-based AI-assisted reflection drafts prepared from project records; each author is responsible for checking that their reflection accurately represents their own experience. No missing measurements were invented.
 
 ## Appendix A. Full Hyperparameter Tables
 
