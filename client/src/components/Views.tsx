@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Panel from "./Panel";
 import { FeatureImportances } from "./Charts";
-import { CLASS_LABEL, FEATURE_HELP, MODELS, type Prediction, type Session } from "@/lib/data";
+import {
+  CLASS_LABEL,
+  FEATURE_HELP,
+  MODEL_DISPLAY,
+  loadEvaluation,
+  type EvaluationPayload,
+  type Prediction,
+  type Session,
+} from "@/lib/data";
+import type { ModelName } from "@/types";
 
 const btn =
   "rounded-md border border-[color:var(--line)] px-3 py-1.5 text-sm outline-none hover:border-[color:var(--safe)] focus-visible:ring-2 focus-visible:ring-[color:var(--safe)]";
@@ -49,7 +58,7 @@ export function HistoryView({ history, onClear }: { history: Prediction[]; onCle
                     {CLASS_LABEL[h.prediction]}
                   </td>
                   <td className="px-3 py-2 tabular-nums">{h.confidence.toFixed(1)}%</td>
-                  <td className="px-3 py-2 text-[color:var(--muted)]">{h.model}</td>
+                  <td className="px-3 py-2 text-[color:var(--muted)]">{MODEL_DISPLAY[h.model]}</td>
                 </tr>
               ))}
             </tbody>
@@ -61,44 +70,75 @@ export function HistoryView({ history, onClear }: { history: Prediction[]; onCle
 }
 
 export function ModelsView() {
+  const [data, setData] = useState<EvaluationPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadEvaluation().then(setData).catch((e) => setError(String(e)));
+  }, []);
+
+  if (error) return <Panel title="Model comparison"><p className="text-sm text-[color:var(--threat-soft)]">{error}</p></Panel>;
+  if (!data) return <Panel title="Model comparison"><p className="text-sm text-[color:var(--muted)]">Loading…</p></Panel>;
+
+  const order: ModelName[] = ["xgboost", "random_forest", "tabnet"];
+  const rows = order
+    .filter((k) => data.models[k])
+    .map((k) => ({
+      key: k,
+      name: MODEL_DISPLAY[k],
+      kind:
+        k === "random_forest" ? "Bagging ensemble" :
+        k === "xgboost" ? "Boosting ensemble" :
+        "Deep learning",
+      accuracy: data.models[k].accuracy * 100,
+      macroF1: data.models[k].macro_f1 * 100,
+      u2r: (data.models[k].per_class["u2r"]?.recall ?? 0) * 100,
+      r2l: (data.models[k].per_class["r2l"]?.recall ?? 0) * 100,
+    }));
+
+  const maxF1 = Math.max(...rows.map((r) => r.macroF1));
+
   return (
     <div className="space-y-5">
-      <Panel title="Model comparison">
+      <Panel title="Test-set comparison">
         <p className="mb-4 text-sm text-[color:var(--muted)]">
-          Sample values for layout only. They will be replaced by the real evaluation results from the training script.
+          All numbers from the frozen test-set evaluation.
+          Source: <span className="text-[color:var(--safe)]">outputs/03_evaluation/test_set_evaluation.json</span>.
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-[color:var(--muted)]">
               <tr>
-                {["Model", "Type", "Accuracy", "Precision", "Recall", "F1"].map((h) => (
+                {["Model", "Type", "Accuracy", "Macro F1", "U2R recall", "R2L recall"].map((h) => (
                   <th key={h} className="border-b border-[color:var(--line)] px-3 py-2 font-normal">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {MODELS.map((m) => (
-                <tr key={m.name} className="border-b border-[color:var(--line)] last:border-0">
-                  <td className="px-3 py-3 font-semibold">{m.name}</td>
-                  <td className="px-3 py-3 text-[color:var(--muted)]">{m.kind}</td>
-                  {[m.accuracy, m.precision, m.recall, m.f1].map((v, i) => (
-                    <td key={i} className="px-3 py-3 tabular-nums">{v.toFixed(1)}%</td>
-                  ))}
+              {rows.map((r) => (
+                <tr key={r.key} className="border-b border-[color:var(--line)] last:border-0">
+                  <td className="px-3 py-3 font-semibold">{r.name}</td>
+                  <td className="px-3 py-3 text-[color:var(--muted)]">{r.kind}</td>
+                  <td className="px-3 py-3 tabular-nums">{r.accuracy.toFixed(2)}%</td>
+                  <td className="px-3 py-3 tabular-nums">{r.macroF1.toFixed(2)}%</td>
+                  <td className="px-3 py-3 tabular-nums">{r.u2r.toFixed(2)}%</td>
+                  <td className="px-3 py-3 tabular-nums">{r.r2l.toFixed(2)}%</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </Panel>
-      <Panel title="Accuracy">
+      <Panel title="Macro F1 (test set)">
         <ul className="space-y-3 text-sm">
-          {MODELS.map((m) => (
-            <li key={m.name} className="grid grid-cols-[9rem_1fr_3.5rem] items-center gap-3">
-              <span className="text-[color:var(--muted)]">{m.name}</span>
+          {rows.map((r) => (
+            <li key={r.key} className="grid grid-cols-[9rem_1fr_4rem] items-center gap-3">
+              <span className="text-[color:var(--muted)]">{r.name}</span>
               <div className="h-4 rounded-sm bg-[color:var(--line)]">
-                <div className="h-full rounded-sm bg-[color:var(--safe)]" style={{ width: `${m.accuracy}%`, boxShadow: "0 0 10px var(--safe)" }} />
+                <div className="h-full rounded-sm bg-[color:var(--safe)]"
+                     style={{ width: `${(r.macroF1 / maxF1) * 100}%`, boxShadow: "0 0 10px var(--safe)" }} />
               </div>
-              <span className="tabular-nums">{m.accuracy.toFixed(1)}%</span>
+              <span className="text-right tabular-nums">{r.macroF1.toFixed(2)}%</span>
             </li>
           ))}
         </ul>
@@ -107,10 +147,10 @@ export function ModelsView() {
   );
 }
 
-export function ExplainView({ last }: { last: Prediction | null }) {
+export function ExplainView({ last, model }: { last: Prediction | null; model: ModelName }) {
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      <FeatureImportances />
+      <FeatureImportances model={model} />
       <Panel title="Last analysis">
         {last ? (
           <dl className="space-y-2 text-sm">

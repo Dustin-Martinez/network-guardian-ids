@@ -10,7 +10,6 @@ import type { ModelName, NetworkPacketRequest } from "@/types";
 
 const NON_NEGATIVE = (n: string) => ["duration", "src_bytes", "dst_bytes"].includes(n);
 
-// Mirrors contract section 6 (server/validate.js). Returns an error message or null.
 function validate(v: FormValues): string | null {
   if (!["tcp", "udp", "icmp"].includes(v.protocol_type)) return "protocol_type must be tcp, udp or icmp.";
   if (!v.service.trim()) return "service cannot be empty.";
@@ -35,9 +34,16 @@ function toRequest(v: FormValues, model: ModelName) {
   return { ...(out as unknown as NetworkPacketRequest), model };
 }
 
-export default function AnalyzeForm({ onResult }: { onResult: (p: Prediction) => void }) {
+export default function AnalyzeForm({
+  onResult,
+  model,
+  onModelChange,
+}: {
+  onResult: (p: Prediction) => void;
+  model: ModelName;
+  onModelChange: (m: ModelName) => void;
+}) {
   const [values, setValues] = useState<FormValues>(NORMAL_PRESET);
-  const [model, setModel] = useState<ModelName>("xgboost");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,7 +97,7 @@ export default function AnalyzeForm({ onResult }: { onResult: (p: Prediction) =>
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-sm">
           <span className="mb-1 block text-[color:var(--muted)]">Model</span>
-          <select value={model} onChange={(e) => setModel(e.target.value as ModelName)} className={field}>
+          <select value={model} onChange={(e) => onModelChange(e.target.value as ModelName)} className={field}>
             {MODEL_OPTIONS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
         </label>
