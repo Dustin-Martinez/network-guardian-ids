@@ -61,7 +61,11 @@ flag is needed.
 | `outputs/02_training/optuna_rf_trials.csv` | Every Optuna trial's parameters and score |
 | `outputs/02_training/rf_cv_scores.csv` | Per-fold Macro F1 for the best trial |
 
-### 3.2 XGBoost — Owner: Kenneth (Role 4)
+### 3.2 XGBoost — Owner: Kit Dustin (Role 1)
+
+Originally assigned to Kenneth (Role 4). Execution was reassigned to
+Kit Dustin on Day 6 of the sprint. See
+`docs/decision/decision_role4_xgboost_reassignment_20261014.md`.
 
 | File | Purpose |
 |---|---|
@@ -121,7 +125,7 @@ Get-ChildItem models\rf_baseline.meta.json
 Get-ChildItem outputs\02_training\optuna_rf_trials.csv
 Get-ChildItem outputs\02_training\rf_cv_scores.csv
 
-# Kenneth — XGBoost
+# Kit — XGBoost
 Get-ChildItem models\xgb_optuna.meta.json
 Get-ChildItem outputs\02_training\optuna_xgb_trials.csv
 Get-ChildItem outputs\02_training\xgb_cv_scores.csv
@@ -145,8 +149,8 @@ Branch naming follows the pattern
 # Amber
 git checkout -b artifacts/amber-rf-20261013
 
-# Kenneth
-git checkout -b artifacts/kenneth-xgb-20261013
+# Kit
+git checkout -b artifacts/kit-xgb-20261014
 
 # Dwayne
 git checkout -b artifacts/dwayne-tabnet-20261013
@@ -162,7 +166,7 @@ git add models/rf_baseline.meta.json
 git add outputs/02_training/optuna_rf_trials.csv
 git add outputs/02_training/rf_cv_scores.csv
 
-# Kenneth
+# Kit
 git add models/xgb_optuna.meta.json
 git add outputs/02_training/optuna_xgb_trials.csv
 git add outputs/02_training/xgb_cv_scores.csv
@@ -192,7 +196,7 @@ git reset HEAD <unwanted-file>
 # Amber
 git commit -m "artifacts(rf): Random Forest training results"
 
-# Kenneth
+# Kit
 git commit -m "artifacts(xgb): XGBoost training results"
 
 # Dwayne
@@ -210,6 +214,10 @@ git push -u origin artifacts/<role>-<model>-<YYYYMMDD>
 Post in the team channel with the branch name:
 
 > Artifact branch pushed: `artifacts/amber-rf-20261013`. Three files included: meta sidecar, trial log, fold scores.
+
+> Artifact branch pushed: `artifacts/kit-xgb-20261014`. Three files included: meta sidecar, trial log, fold scores.
+
+> Artifact branch pushed: `artifacts/dwayne-tabnet-20261013`. Three files included: meta sidecar, trial log, fold scores.
 
 ### Step 8 — Kit merges
 
@@ -255,8 +263,21 @@ model.
 The Random Forest meta sidecar uses a different key for per-class
 recall: `per_class_recall_cv`. This reflects that the RF's per-class
 recall is computed from the CV folds, while XGBoost and TabNet compute
-it on the training pool. The distinction is documented in the RF
-contract section 9.
+it on the training pool.
+
+The two fields measure the same concept — per-class recall — but on
+different data. The distinction matters when the paper cites the
+numbers:
+
+- `per_class_recall_cv` — generalization estimate from held-out CV
+  folds
+- `per_class_recall_train` — training-pool fit, not a generalization
+  metric
+
+When citing per-class recall in the paper, prefer the CV value if it
+is available. Otherwise, cite the test-set value produced by
+Notebook 03. Do not cite `per_class_recall_train` as a generalization
+metric.
 
 ### 6.2 Trial log structure
 
@@ -299,18 +320,39 @@ a machine that has all three binaries.
 
 ---
 
-## 8. Binary Transfer — Out of Band
+## 8. Binary Transfer via Shared Drive
 
 If a downstream step requires an actual binary and it is not present
-locally:
+locally, the binary is transferred via the shared drive. It is never
+committed to git.
 
-1. The teammate who trained the model uploads the binary to the shared
-   drive folder.
-2. Kit (or whoever runs the downstream step) downloads it into
-   `models/`.
-3. The binary is never committed to git.
+### 8.1 Drive Location
 
-Shared drive location: `<to be defined by Kit at time of need>`.
+**Folder name:** `NetworkGuardian-Models`
+
+**Contents after all three models trained:**
+
+    NetworkGuardian-Models/
+    ├── rf_baseline.joblib           (Amber)
+    ├── rf_baseline.meta.json        (Amber)
+    ├── xgb_optuna.joblib            (Kit)
+    ├── xgb_optuna.meta.json         (Kit)
+    ├── tabnet_best.zip              (Dwayne)
+    └── tabnet_best.meta.json        (Dwayne)
+
+### 8.2 Upload Procedure
+
+After the training run completes and the artifact branch is pushed,
+the training-run contributor uploads both the binary and the meta
+sidecar to the shared drive folder. Post in the team channel when
+done.
+
+### 8.3 Download Procedure
+
+Before running Notebook 03 (evaluation), download the binaries and
+meta sidecars that are not already present locally. The evaluation
+step requires all three binaries and all three meta sidecars to be
+present in the local `models/` folder.
 
 ---
 
@@ -330,20 +372,20 @@ branches are merged:
 
 ## 10. `.gitignore` Alignment
 
-The current `.gitignore` correctly excludes binaries and includes
-meta sidecars and CSVs. No changes required for the standard
-workflow.
+The `.gitignore` was verified against this policy during the XGBoost
+phase. Current state:
 
-Two patterns are worth confirming:
+| Pattern | Status | Effect |
+|---|---|---|
+| `models/*.joblib` | Present | Ignores RF and XGBoost binaries |
+| `models/*.zip` | Present | Ignores the TabNet binary |
+| `models/*.pt` | Present | Ignores any future PyTorch binary |
+| `models/*.meta.json` | Not present (tracked) | Meta sidecars are committed |
+| `outputs/02_training/*.db` | Present | Study databases are ignored |
+| `!outputs/**/*.csv` | Present | Trial logs and fold CSVs are tracked |
 
-- `models/*.joblib` — matched, binaries ignored.
-- `models/*.zip` — should be present to catch the TabNet binary.
-  Confirm with `git check-ignore -v models/tabnet_best.zip`. If it
-  returns nothing, add the pattern.
-- `!outputs/**/*.csv` — matched, CSVs tracked.
-- `models/*.meta.json` — not explicitly ignored, so tracked by
-  default. Confirm with `git check-ignore -v models/rf_baseline.meta.json`.
-  Expect no output.
+No `.gitignore` change is needed for the standard workflow. If a new
+artifact type is introduced, update this section.
 
 ---
 
