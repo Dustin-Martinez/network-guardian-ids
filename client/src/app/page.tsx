@@ -9,11 +9,13 @@ import ThreatGauge from "@/components/ThreatGauge";
 import { ConfusionMatrix, FeatureImportances, TrafficChart } from "@/components/Charts";
 import { ExplainView, HistoryView, ModelsView, SettingsView } from "@/components/Views";
 import { THEME, type Prediction, type Session, type View } from "@/lib/data";
+import type { ModelName } from "@/types";
 
 function Dashboard({ user, onLogout }: { user: Session; onLogout: () => void }) {
   const [view, setView] = useState<View>("dashboard");
   const [result, setResult] = useState<Prediction | null>(null);
   const [history, setHistory] = useState<Prediction[]>([]);
+  const [model, setModel] = useState<ModelName>("xgboost");
 
   function handleResult(p: Prediction) {
     setResult(p);
@@ -32,24 +34,24 @@ function Dashboard({ user, onLogout }: { user: Session; onLogout: () => void }) 
         <main className="min-w-0 flex-1 space-y-5 p-5">
           {view === "dashboard" && (
             <>
-              <AnalyzeForm onResult={handleResult} />
+              <AnalyzeForm onResult={handleResult} model={model} onModelChange={setModel} />
               <div className="grid gap-5 lg:grid-cols-2">
                 <TrafficChart />
                 <ThreatGauge result={result} history={history} />
-                <ConfusionMatrix />
-                <FeatureImportances />
+                <ConfusionMatrix model={model} />
+                <FeatureImportances model={model} />
               </div>
             </>
           )}
           {view === "analyze" && (
             <div className="grid gap-5 lg:grid-cols-[1fr_minmax(0,380px)]">
-              <AnalyzeForm onResult={handleResult} />
+              <AnalyzeForm onResult={handleResult} model={model} onModelChange={setModel} />
               <ThreatGauge result={result} history={history} />
             </div>
           )}
           {view === "history" && <HistoryView history={history} onClear={clearHistory} />}
           {view === "models" && <ModelsView />}
-          {view === "explain" && <ExplainView last={result} />}
+          {view === "explain" && <ExplainView last={result} model={model} />}
           {view === "settings" && (
             <SettingsView user={user} count={history.length} onClear={clearHistory} onLogout={onLogout} />
           )}
@@ -59,7 +61,6 @@ function Dashboard({ user, onLogout }: { user: Session; onLogout: () => void }) 
   );
 }
 
-// Session lives in sessionStorage; useSyncExternalStore reads it without setState-in-effect.
 const SESSION_KEY = "ng_session";
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
@@ -76,7 +77,6 @@ function getSnapshot(): string | null | undefined {
     return null;
   }
 }
-// undefined = "not ready yet" (server render and hydration)
 function getServerSnapshot(): string | null | undefined {
   return undefined;
 }

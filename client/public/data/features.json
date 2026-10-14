@@ -1,0 +1,104 @@
+{
+  "random_forest": [
+    {
+      "name": "service_freq",
+      "value": 0.11947196951591114
+    },
+    {
+      "name": "src_bytes",
+      "value": 0.11266723351417887
+    },
+    {
+      "name": "dst_bytes",
+      "value": 0.09542886559917887
+    },
+    {
+      "name": "logged_in",
+      "value": 0.06584927229694927
+    },
+    {
+      "name": "count",
+      "value": 0.05415792463286109
+    },
+    {
+      "name": "dst_host_diff_srv_rate",
+      "value": 0.053273700306007844
+    },
+    {
+      "name": "srv_count",
+      "value": 0.046770023006057655
+    },
+    {
+      "name": "same_srv_rate",
+      "value": 0.04402508089642676
+    }
+  ],
+  "xgboost": [
+    {
+      "name": "flag_S0",
+      "value": 0.18932947516441345
+    },
+    {
+      "name": "num_failed_logins",
+      "value": 0.0920548364520073
+    },
+    {
+      "name": "protocol_type_icmp",
+      "value": 0.09003210812807083
+    },
+    {
+      "name": "root_shell",
+      "value": 0.08277848362922668
+    },
+    {
+      "name": "service_freq",
+      "value": 0.05171825364232063
+    },
+    {
+      "name": "count",
+      "value": 0.049004580825567245
+    },
+    {
+      "name": "num_file_creations",
+      "value": 0.04743759334087372
+    },
+    {
+      "name": "same_srv_rate",
+      "value": 0.039221301674842834
+    }
+  ],
+  "tabnet": [
+    {
+      "name": "service_freq",
+      "value": 8.657862399704754
+    },
+    {
+      "name": "dst_host_srv_serror_rate",
+      "value": 4.1178820626312245
+    },
+    {
+      "name": "protocol_type_tcp",
+      "value": 2.7416249141149365
+    },
+    {
+      "name": "num_file_creations",
+      "value": 2.643417136126553
+    },
+    {
+      "name": "same_srv_rate",
+      "value": 2.4520611344229337
+    },
+    {
+      "name": "src_bytes",
+      "value": 1.9875782897534784
+    },
+    {
+      "name": "diff_srv_rate",
+      "value": 1.4910308236841274
+    },
+    {
+      "name": "dst_host_same_srv_rate",
+      "value": 1.1343715131691852
+    }
+  ]
+}

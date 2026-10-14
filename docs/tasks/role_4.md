@@ -1,8 +1,16 @@
 # Operational Mandate: Role 4 - Kenneth
 
-**Title:** Execution Lead (XGBoost), Technical Tester & Video Producer
+**Title:** Technical Tester & Video Producer
+
+**Note on ownership:** The XGBoost execution phase was originally
+assigned to Role 4. Execution was reassigned to Kit Dustin (Role 1)
+on Day 6 of the sprint. See
+`docs/decision/decision_role4_xgboost_reassignment_20261014.md`.
+Kenneth retains Phase 1 onboarding (as a prerequisite reference),
+Phase 3 documentation verification, and Phase 4 video production.
 
 ---
+
 ## Phase 1: Environment and Test Automation Setup
 
 **Documents to reference:**
@@ -10,7 +18,7 @@
 - `requirements.txt` — the pinned dependencies
 - `src/verify_env.py` — the environment verification script
 - `docs/README.md` — documentation hierarchy
-- `docs/contracts/role-4-training-execution-spec.md` — the execution contract Kenneth will follow in Phase 2
+- `docs/contracts/role-4-training-execution-spec.md` — the execution contract for the XGBoost run, now executed by Kit
 
 - **Dependencies:** GitHub repository access.
 - **Target Files:** Local `.venv`, cloned repository.
@@ -21,7 +29,7 @@
      running Notebook 01 to generate `data/processed/`, verifying the
      data shapes, and verifying the four frozen hashes.
   2. Confirm the machine can allocate sufficient memory for a
-     continuous 6-hour XGBoost run.
+     continuous 6-hour job.
   3. Confirm sleep and hibernate timers are disabled.
   4. Post in the team channel when all steps are complete.
 - **Handoff:** Phase 1 completion noted in the sprint report.
@@ -33,11 +41,18 @@
 
 ## Phase 2: XGBoost Execution and Verification
 
+**Ownership change:** This phase was originally assigned to Kenneth
+(Role 4). Execution was reassigned to Kit Dustin (Role 1) on Day 6 of
+the sprint. The mandate content is unchanged. The reassignment is
+documented in
+`docs/decision/decision_role4_xgboost_reassignment_20261014.md`.
+
 **Documents to reference:**
-- `docs/contracts/role-4-training-execution-spec.md` — authoritative execution contract, sections 3 through 15
+- `docs/contracts/role-4-training-execution-spec.md` — authoritative execution contract, sections 3 through 16
 - `docs/contracts/role-5-training-execution-spec.md` — TabNet contract, for reference on how the sibling run is documented
+- `docs/contracts/artifact_transfer_policy.md` — the procedure for pushing meta sidecars and CSVs
 - `src/models.py` — the frozen model code
-- `notebooks/02_Model_Training.ipynb` — the notebook Kenneth runs
+- `notebooks/02_Model_Training.ipynb` — the notebook the executor runs
 - `data/processed/split_indices.json` — the frozen split
 
 - **Dependencies:** Kit has finalized `src/models.py`. Amber's Random
@@ -51,13 +66,17 @@
   3. Run Cell 8 (XGBoost save).
   4. Verify outputs per section 9 of the contract.
   5. Post the XGBoost summary block per section 10 in the team channel.
-- **Handoff:** Notify Kit that the XGBoost artifacts are on disk.
+  6. Push the three artifact files (meta sidecar, trial log, fold
+     scores) to an artifact branch per
+     `docs/contracts/artifact_transfer_policy.md` section 5.
+- **Handoff:** Notify the team channel that the XGBoost artifacts are
+  on disk and the artifact branch has been pushed.
 
-**Note:** TabNet execution is owned by Role 5. Kenneth does not run
-TabNet cells.
+**Note:** TabNet execution is owned by Role 5 (Dwayne). The XGBoost
+executor does not run TabNet cells.
 
 **Sprint report name:**
-`docs/reports/role-4-phase-2-kenneth-xgboost-execution.md`
+`docs/reports/role-4-phase-2-kit-xgboost-execution.md`
 
 ---
 
@@ -66,11 +85,13 @@ TabNet cells.
 **Documents to reference:**
 - `docs/reports/discovery_log.md` — the discovery log to verify
 - `docs/reports/executive_summary.md` — the executive summary to verify
-- `docs/reports/role-4-phase-2-kenneth-xgboost-execution.md` — Kenneth's own execution record
-- `docs/contracts/role-4-training-execution-spec.md` — the contract against which results are verified
+- `docs/reports/role-4-phase-2-kit-xgboost-execution.md` — the
+  execution record for the XGBoost run
+- `docs/contracts/role-4-training-execution-spec.md` — the contract
+  against which results are verified
 
 - **Dependencies:** Markie's draft of the discovery log and executive
-  summary.
+  summary. The XGBoost execution report must be complete.
 - **Target Files:** `docs/reports/discovery_log.md`,
   `docs/reports/executive_summary.md`.
 - **Instructions:** Review the documentation to confirm the empirical

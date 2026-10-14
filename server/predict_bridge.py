@@ -66,17 +66,14 @@ def predict(packet: dict) -> dict:
     meta = read_json(meta_path)
     check_metadata(meta, list(frame.columns))
     if model_name == "tabnet":
-        # The existing trainer uses raw engineered arrays, while the API contract
-        # requires scaling. Do not silently serve a mismatched model. Kit must
-        # confirm a scaler-trained artifact before enabling this contract path.
-        if meta.get("preprocessing", {}).get("scaling") != "standard_scaler":
-            raise ValueError("TabNet unavailable: training/inference scaling requires Kit confirmation; see Role 2 Phase 2 report.")
+        # TabNet was trained on the raw engineered feature matrix. The scaler
+        # artifact exists in data/processed/ but was not applied during training.
+        # Serving must match training, so the raw matrix is passed directly.
         from pytorch_tabnet.tab_model import TabNetClassifier
 
         model = TabNetClassifier(device_name="cpu", verbose=0)
         model.load_model(str(model_path))
-        matrix = joblib.load(PROCESSED / "scaler_tabnet.pkl").transform(frame.to_numpy())
-        probabilities = np.asarray(model.predict_proba(matrix))
+        probabilities = np.asarray(model.predict_proba(frame.to_numpy()))
         labels = CLASSES
     else:
         model = joblib.load(model_path)

@@ -1,6 +1,8 @@
 # XGBoost Training Execution Specification
 
-**Owner of the execution process:** Kenneth (Role 4)
+**Owner of the execution process:** Kit Dustin (Role 1) — reassigned
+from Kenneth (Role 4) on Day 6. See
+`docs/decision/decision_role4_xgboost_reassignment_20261014.md`.
 **Owner of this specification:** Kit (Role 1)
 **Effective date:** Day 5 of the 10-day sprint
 **Status:** Frozen for the sprint. Changes require a PR and Kit's
@@ -8,6 +10,7 @@ sign-off.
 **Related documents:**
 - `docs/contracts/role-5-training-execution-spec.md` — TabNet execution
 - `docs/contracts/api_data_contract.md` — feature ordering and payloads
+- `docs/contracts/artifact_transfer_policy.md` — meta sidecar and CSV transfer procedure
 - `docs/README.md` — documentation hierarchy and escalation
 - `docs/decision/Decision Template.md` — how to raise a decision
 - `docs/SETUP.md` — prerequisite onboarding guide
@@ -16,10 +19,10 @@ sign-off.
 
 ## 1. Purpose
 
-This document is the authoritative specification for how Kenneth
-executes the XGBoost training run in Notebook 02. It defines what to
-run, in what order, expected duration, how to monitor progress, how to
-intervene when something goes wrong, and what to report back.
+This document is the authoritative specification for how the XGBoost
+training run in Notebook 02 is executed. The original executor was
+Kenneth (Role 4). Execution was reassigned to Kit Dustin (Role 1) on
+Day 6 of the sprint.
 
 The specification exists so that the XGBoost run happens reliably,
 without guesswork, and without risk of accidental test-set exposure or
@@ -35,18 +38,18 @@ responsibility of Role 4.
 
 | Item | Owner |
 |---|---|
-| Running Notebook 02 Cells 7 and 8 (XGBoost) | Kenneth |
-| Monitoring XGBoost training output | Kenneth |
-| Reporting anomalies to Kit | Kenneth |
-| Writing Cells 7 and 8 in Notebook 02 | Kit — Kenneth executes them as written |
+| Running Notebook 02 Cells 7 and 8 (XGBoost) | Executor |
+| Monitoring XGBoost training output | Executor |
+| Reporting anomalies to Kit | Executor |
+| Writing Cells 7 and 8 in Notebook 02 | Kit — the executor runs them as written |
 | Not modifying `src/models.py` | Anyone — frozen for Phase 3 |
-| Not modifying Cells 5, 6, 9, or 10 of Notebook 02 | Kenneth — those are Amber's and Dwayne's |
+| Not modifying Cells 5, 6, 9, or 10 of Notebook 02 | Executor — those are Amber's and Dwayne's |
 | Not evaluating on the test set | Anyone — test evaluation happens in Notebook 03 |
-| Not running Cells 5, 6, 9, or 10 | Kenneth — those belong to Amber and Dwayne |
+| Not running Cells 5, 6, 9, or 10 | Executor — those belong to Amber and Dwayne |
 
-Kenneth does not write code. Kenneth executes code that Kit has written
-and verified. If a cell fails, Kenneth reports the error; Kenneth does
-not attempt to fix it.
+The executor does not write code. The executor runs code that Kit has
+written and verified. If a cell fails, the executor reports the error;
+the executor does not attempt to fix it.
 
 ---
 
@@ -127,7 +130,7 @@ team channel.
 
 ## 4. Run Sequence
 
-Kenneth runs exactly two cells.
+The executor runs exactly two cells.
 
 | Order | Cell | Task | Duration |
 |---|---|---|---|
@@ -141,9 +144,9 @@ the trained model will not be persisted.
 If the session ends accidentally, re-run Cell 7 from scratch. Partial
 models are not recoverable.
 
-Kenneth does not run Cells 5, 6, 9, or 10. They belong to Amber and
-Dwayne, and running them on Kenneth's machine would duplicate or
-conflict with artifacts on other machines.
+The executor does not run Cells 5, 6, 9, or 10. They belong to Amber
+and Dwayne, and running them on the executor's machine would duplicate
+or conflict with artifacts on other machines.
 
 ---
 
@@ -163,7 +166,8 @@ the following sequence:
 5. The objective is Macro F1, averaged across the 5 folds.
 6. Trials whose running fold mean falls below the median are pruned.
 7. After the study completes, the best configuration is refit on the
-   full cleaned training pool.
+   full cleaned training pool with early stopping disabled. The number
+   of boosting rounds is fixed to the best trial's `n_estimators`.
 8. The final model, its meta sidecar, the trial log, and the fold
    scores are written to disk.
 
@@ -217,7 +221,7 @@ exactly the following code. No additions, no reordering, no changes.
 #### Cell 7 — XGBoost Tuning
 
 ```python
-# XGBoost training (Kenneth, Role 4)
+# XGBoost training (Kit, Role 4 — reassigned from Kenneth)
 # Contract: docs/contracts/role-4-training-execution-spec.md
 # Estimated wall time: 4 to 6 hours
 
@@ -234,7 +238,7 @@ print("XGBoost CV Macro F1:", xgb_result["cv_mean_macro_f1"])
 #### Cell 8 — XGBoost Save Verification
 
 ```python
-# XGBoost artifact verification (Kenneth, Role 4)
+# XGBoost artifact verification (Kit, Role 4 — reassigned from Kenneth)
 
 assert (PATHS.models / "xgb_optuna.joblib").is_file(), "XGBoost model missing"
 assert (PATHS.models / "xgb_optuna.meta.json").is_file(), "XGBoost meta missing"
@@ -243,8 +247,8 @@ print("XGBoost artifacts verified.")
 
 Rationale: the arrays `X_train`, `y_train`, and `class_order` are
 provided by shared setup Cells 3 and 4. Cell 7 calls `train_xgb`
-directly. If Kenneth or any future executor modifies these cells, the
-resulting model diverges from the reference and the change must be
+directly. If the executor or any future executor modifies these cells,
+the resulting model diverges from the reference and the change must be
 raised as a decision.
 
 ---
@@ -305,8 +309,8 @@ independent and do not conflict:
 - TabNet writes to `models/tabnet_best.*` and
   `outputs/02_training/optuna_study_tabnet.db`.
 
-Kenneth does not need to coordinate timing with Dwayne. If the two
-runs happen to be on the same home network, no shared resource is
+The executor does not need to coordinate timing with Dwayne. If the
+two runs happen to be on the same home network, no shared resource is
 contended.
 
 ---
@@ -416,12 +420,26 @@ Expected: all files present.
 If a verification fails, capture the full output and paste into the
 team channel. Do not attempt to fix.
 
+### 9.3 Artifact transfer
+
+After verification passes, the executor pushes the three artifact
+files to an artifact branch per
+`docs/contracts/artifact_transfer_policy.md` section 5:
+
+- `models/xgb_optuna.meta.json`
+- `outputs/02_training/optuna_xgb_trials.csv`
+- `outputs/02_training/xgb_cv_scores.csv`
+
+The binary `models/xgb_optuna.joblib` is not pushed. It is uploaded to
+the shared drive per
+`docs/contracts/artifact_transfer_policy.md` section 8.
+
 ---
 
-## 10. What Kenneth Reports
+## 10. What the Executor Reports
 
-After the XGBoost run completes, Kenneth posts the following in the
-team channel.
+After the XGBoost run completes, the executor posts the following in
+the team channel.
 
 > XGBoost training complete.
 >
@@ -429,18 +447,22 @@ team channel.
 > - Best trial: N
 > - CV mean Macro F1: X.XXXX
 > - CV std: X.XXXX
-> - U2R recall: X.XX
-> - R2L recall: X.XX
+> - U2R recall (train pool): X.XX
+> - R2L recall (train pool): X.XX
 > - Artifacts verified: `models/xgb_optuna.joblib`,
 >   `models/xgb_optuna.meta.json`,
 >   `outputs/02_training/optuna_xgb_trials.csv`
+>
+> Note: `per_class_recall_train` measures recall on the training pool
+> after the refit. It is not a generalization metric. Test-set recall
+> is produced by Notebook 03.
 
-Kenneth does not interpret the metrics or suggest changes. Kenneth
-reports numbers. Kit and Markie interpret.
+The executor does not interpret the metrics or suggest changes. The
+executor reports numbers. Kit and Markie interpret.
 
 ---
 
-## 11. What Kenneth Must Not Do
+## 11. What the Executor Must Not Do
 
 | Prohibited action | Reason |
 |---|---|
@@ -462,7 +484,7 @@ reports numbers. Kit and Markie interpret.
 
 ## 12. Coordination
 
-Kenneth coordinates with Kit on the following:
+The executor coordinates with Kit on the following:
 
 - **Before starting:** confirm the machine is available for the full
   duration of the run.
@@ -470,16 +492,16 @@ Kenneth coordinates with Kit on the following:
 - **On any error:** paste the traceback and stop.
 - **Before re-running Cell 7:** wait for Kit's guidance.
 
-Kit coordinates with Kenneth on the following:
+Kit coordinates with the executor on the following:
 
-- **Trial budget changes:** if Kit adjusts budgets, Kenneth is notified
-  before the run.
-- **Code changes:** if Kit patches `src/models.py`, Kenneth re-pulls
-  before running.
+- **Trial budget changes:** if Kit adjusts budgets, the executor is
+  notified before the run.
+- **Code changes:** if Kit patches `src/models.py`, the executor
+  re-pulls before running.
 - **Schedule:** Kit sets the target window for the run.
 
-Kenneth does not coordinate directly with Dwayne. Any conflict between
-the two execution owners is resolved by Kit.
+The executor does not coordinate directly with Dwayne. Any conflict
+between the two execution owners is resolved by Kit.
 
 ---
 
@@ -492,8 +514,8 @@ the two execution owners is resolved by Kit.
 | Day 6 morning | XGBoost save (Cell 8) | under 1 minute |
 | Day 6 morning | Post-run verification and report | 15 minutes |
 
-Kenneth completes the XGBoost execution portion of Phase 3 by end of
-Day 6.
+The executor completes the XGBoost execution portion of Phase 3 by end
+of Day 6.
 
 ---
 
@@ -505,10 +527,10 @@ This spec is frozen for the sprint. Any change requires:
 2. A corresponding note in `docs/reports/`.
 3. Kit's approval as the spec's owner.
 
-If a change to `src/models.py` is required, Kit makes the change,
-Kenneth re-pulls, and Kenneth re-runs from the affected cell.
+If a change to `src/models.py` is required, Kit makes the change, the
+executor re-pulls, and the executor re-runs from the affected cell.
 
-If Kenneth encounters an ambiguity not covered by this spec, the
+If the executor encounters an ambiguity not covered by this spec, the
 escalation path is `docs/README.md` section 10 and the decision
 template at `docs/decision/Decision Template.md`. Do not improvise.
 
@@ -516,7 +538,8 @@ template at `docs/decision/Decision Template.md`. Do not improvise.
 
 ## 15. Verification Checklist
 
-Kenneth runs through this checklist before beginning the training run.
+The executor runs through this checklist before beginning the training
+run.
 
 - [ ] `.venv` active, Python 3.11.9 confirmed
 - [ ] `python src/verify_env.py` prints PASSED
@@ -531,7 +554,24 @@ Kenneth runs through this checklist before beginning the training run.
 - [ ] A note has been posted in the team channel that training is
       starting
 
-After the checklist passes, Kenneth runs Cell 7 and monitors as
+After the checklist passes, the executor runs Cell 7 and monitors as
 described in section 5.4.
+
+---
+
+## 16. Ownership History
+
+| Date | Owner | Change |
+|---|---|---|
+| Day 5 | Kenneth (Role 4) | Initial assignment |
+| Day 6 | Kit Dustin (Role 1) | Reassigned due to Kenneth's unavailability |
+
+The reassignment is documented in
+`docs/decision/decision_role4_xgboost_reassignment_20261014.md`. The
+technical specification (sections 1 through 15) was not modified by
+the reassignment. Only the executor identity changed.
+
+See also `docs/contracts/artifact_transfer_policy.md` for the
+procedure the executor follows after the training run completes.
 
 --END OF DOCUMENT--
